@@ -12,6 +12,18 @@ def merge(single_line_embedding,all_lines_embedding,structure):
     pass
 ```
 # 参考的仓库
-解析路网：
+不得不说，Eclipse的sumo的文档做的真是一坨大便。很多东西都不一样。
 
-信号控制：git@github.com:DaRL-LibSignal/LibSignal.git
+通过pip下载sumo：https://sumo.dlr.de/docs/Downloads.php
+和installing是完全不一样的东西：https://sumo.dlr.de/docs/Installing/index.html。
+这应该是两个人写的，并且两个人都不知道对方的存在。
+
+1.解析路网：
+
+基于cityflow和sumo的信号控制：https://github.com/DaRL-LibSignal/LibSignal
+基于Cityflow的efficient traffic signal：https://github.com/LiangZhang1996/Efficient_XLight
+
+2.修改仿真引擎
+
+
+3.修改
