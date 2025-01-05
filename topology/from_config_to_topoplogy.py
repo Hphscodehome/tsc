@@ -1,6 +1,5 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-
 def net_2_struct(net):
     """
     从路网文件中提取信息：
