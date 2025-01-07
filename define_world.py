@@ -25,10 +25,14 @@ class World():
         self.eng = traci
         self.inters = [Intersection(self.eng,intersection_id,intersection_2_position[intersection_id],intersection_2_updownstream,lane_2_shape,lane_2_updownstream) for intersection_id in intersection_2_updownstream.keys()]
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg, "--remote-port", "8813"]
+        print(lane_2_shape)
+        print(intersection_2_updownstream)
+        print(lane_2_updownstream)
+        print(intersection_2_position)
     
 if __name__ == '__main__':
     sumocfg = '/data/hupenghui/tsc/net.sumocfg'
     world = World(sumocfg)
     print(__file__)
     print(__name__)
-    print(world.inters[0].upstream_lanes)
+    print(world.inters[0].lanes_conflict_map)

@@ -7,20 +7,47 @@ import numpy as np
 
 #region my-package
 from datatype.define_datatype import Phase
+from utils.position import judge_cross
 #endregion
 
 class Intersection():
     def __init__(self,eng,intersection_id,position,intersection_2_updownstream,lane_2_shape,lane_2_updownstream):
         super().__init__()
-        # 根据id提取上下游车道信息
         self.eng = eng
         self.id = intersection_id
         self.position = position
         self.upstream_lanes = list(intersection_2_updownstream[self.id]['from'])
         self.downstream_lanes = list(intersection_2_updownstream[self.id]['to'])
-        self.traffic_light = [item[1] for item in sorted(list(intersection_2_updownstream[self.id]['traffic_light']), key=lambda x:x[0])]
+        self.traffic_light_lanes = [item[1] for item in sorted(list(intersection_2_updownstream[self.id]['traffic_light']), key=lambda x:x[0])]
+        self.lane_2_shape = {lane:lane_2_shape[lane] for lane in self.traffic_light_lanes}
+        self.lane_2_updownstream = {lane:lane_2_updownstream[lane] for lane in self.traffic_light_lanes}
+        self.lanes_conflict_map = self.get_lanes_conflict_map()
         
-        
+    #region 统计冲突车道
+    def get_lanes_conflict_map(self):
+        # 找到各个车道之间哪个与哪个是冲突的。根据坐标信息。
+        lanes_conflict_map = []
+        for lane_index_i in range(len(self.traffic_light_lanes)):
+            lane_conflict_map = []
+            for lane_index_j in range(len(self.traffic_light_lanes)):
+                if lane_index_i == lane_index_j:
+                    lane_conflict_map.append(0)
+                else:
+                    lane_i = self.traffic_light_lanes[lane_index_i]
+                    lane_j = self.traffic_light_lanes[lane_index_j]
+                    if judge_cross([self.lane_2_shape[lane_i][0],self.lane_2_shape[lane_i][-1]],
+                                [self.lane_2_shape[lane_j][0],self.lane_2_shape[lane_j][-1]]):
+                        lane_conflict_map.append(1)
+                    else:
+                        lane_conflict_map.append(0)
+            lanes_conflict_map.append(lane_conflict_map)
+        return np.array(lanes_conflict_map)
+    #endregion 
+    
+    
+    
+    
+    
     #region lane
     def get_lane_average_speed(self):
         # 平均速度平均速度越大，说明越不紧急

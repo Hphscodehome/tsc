@@ -1,2 +1,6 @@
 pydantic
 numpy
+traci
+eclipse-sumo
+libsumo
+sumolib
