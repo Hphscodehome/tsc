@@ -4,3 +4,4 @@ traci
 eclipse-sumo
 libsumo
 sumolib
+gymnasium
