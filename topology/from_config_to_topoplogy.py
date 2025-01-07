@@ -1,5 +1,12 @@
+#region other-package
 import xml.etree.ElementTree as ET
 from collections import defaultdict
+#endregion
+
+#region my-package
+from datatype.define_datatype import NetConfig
+#endregion
+
 def net_2_struct(net):
     """
     从路网文件中提取信息：
@@ -25,6 +32,10 @@ def net_2_struct(net):
             for ax in lane_shape.strip().split(' '):
                 x,y = ax.strip().split(',')
                 lane_2_shape[lane_id].append((float(x),float(y)))
+    intersection_2_position = defaultdict(tuple)
+    for junc in root.findall('junction'):
+        if junc.get('type') == "traffic_light":
+            intersection_2_position[junc.get('id')] = (float(junc.get('x')),float(junc.get('y')))
     # 每个交叉口要记录进edge和出edge，因为车辆的排队数量指标是从edge角度表示的
     # 每个交叉口也需要记录index与内部车道之间的对应关系，因为这和设置交叉口的状态有关。
     # 每个内部车道也需要记录进车道和出车道信息，因为内部车道的状态信息与进车道和出车道信息是相关的。
@@ -46,7 +57,10 @@ def net_2_struct(net):
                 raise "error"
             lane_2_updownstream[via]['from'] = edge_2_lane[from_edge][from_lane] 
             lane_2_updownstream[via]['to']= edge_2_lane[to_edge][to_lane]
-    return lane_2_shape, intersection_2_updownstream, lane_2_updownstream
+    return NetConfig(lane_2_shape=lane_2_shape,
+              intersection_2_updownstream=intersection_2_updownstream,
+              lane_2_updownstream=lane_2_updownstream,
+              intersection_2_position=intersection_2_position)
 if __name__ == '__main__':
     net = '/data/hupenghui/tsc/net.net.xml'
     print(net_2_struct(net))
