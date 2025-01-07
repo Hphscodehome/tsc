@@ -5,9 +5,13 @@ from collections import defaultdict
 import numpy as np
 #endregion
 
+#region temp
+import logging
+#endregion
+
 #region my-package
 from datatype.define_datatype import Phase
-from utils.position import judge_cross
+from utils.position import judge_cross,calculate_distance
 #endregion
 
 class Intersection():
@@ -22,6 +26,8 @@ class Intersection():
         self.lane_2_shape = {lane:lane_2_shape[lane] for lane in self.traffic_light_lanes}
         self.lane_2_updownstream = {lane:lane_2_updownstream[lane] for lane in self.traffic_light_lanes}
         self.lanes_conflict_map = self.get_lanes_conflict_map()
+        self.vehicle_gap = 7.5
+        self.max_vehicle_num = 40
         
     #region 统计冲突车道
     def get_lanes_conflict_map(self):
@@ -44,11 +50,7 @@ class Intersection():
         return np.array(lanes_conflict_map)
     #endregion 
     
-    
-    
-    
-    
-    #region lane
+    #region cheda
     def get_lane_average_speed(self):
         # 平均速度平均速度越大，说明越不紧急
         lane_attr_value = defaultdict(float)
@@ -102,60 +104,32 @@ class Intersection():
     #endregion
     
     #region vehicle
-    def get_vehicle_map(self, option=0, average=True):
-        """
-        option: whether is the state of downstream/upstream/current
-        """ 
-        max_vehicle_num = 40
-        num_lane = len(self.lanes)
-
-        # 2 channel: position and speed
-        if option == 0:
-            vehicle_map = np.zeros((2, num_lane, max_vehicle_num))
-            for i, lane in enumerate(self.lanes):
-                # get lanes vehicles
-                lane_vehicles = self.eng.lane.getLastStepVehicleIDs(lane)
-                lane_length = self.lane_length[i]
-                lane_max_speed = self.lane_max_speed[i]
-                for veh in lane_vehicles:
-                    pos = self.eng.vehicle.getLanePosition(veh)
-                    speed = self.eng.vehicle.getSpeed(veh)
-                    idx = int((lane_length - pos) // self.vehicle_gap)
-
-                    if idx >= max_vehicle_num:
-                        continue
-
-                    vehicle_map[0, i, idx] += 1
-                    vehicle_map[1, i, idx] += speed / lane_max_speed 
+    def get_vehicle_map(self, option=0):
+        # 根据可控车道统计车辆信息
+        if option == 0 :
+            all_lanes = self.upstream_lanes + self.downstream_lanes
+        elif option == 1:
+            all_lanes = self.upstream_lanes
+        elif option == 2:
+            all_lanes = self.downstream_lanes
         else:
-            vehicle_map = np.zeros((2, num_lane, 3, max_vehicle_num))
-            if option == 1:
-                all_lane_map, all_lane_length, all_lane_speed = self.downstream_map, self.downstream_length, self.downstream_speed
-            else:
-                all_lane_map, all_lane_length, all_lane_speed = self.upstream_map, self.upstream_length, self.upstream_speed
-            for i, lane in enumerate(self.lanes):
-                # get lanes vehicles
-                for j, l in enumerate(all_lane_map.get(lane, [])):
-                    
-                    lane_vehicles = self.eng.lane.getLastStepVehicleIDs(l)
-                    lane_length = all_lane_length[l]
-                    lane_max_speed = all_lane_speed[l]
-                    for veh in lane_vehicles:
-                        pos = self.eng.vehicle.getLanePosition(veh)
-                        if option != 1:
-                            pos = lane_length - pos
-                        speed = self.eng.vehicle.getSpeed(veh)
-                        idx = int(pos // self.vehicle_gap)
-
-                        if idx >= max_vehicle_num:
-                            continue
-
-                        vehicle_map[0, i, j, idx] += 1
-                        vehicle_map[1, i, j, idx] += speed / lane_max_speed 
-            if average:
-                vehicle_map = np.mean(vehicle_map, axis=2) 
-
-        return vehicle_map
+            raise 'Invalid option'
+        vehicle_attr_value = defaultdict(lambda : np.array([]))
+        for lane in all_lanes:
+            vehicle_array = np.zeros((self.max_vehicle_num,2))
+            lane_vehicles = self.eng.lane.getLastStepVehicleIDs(lane)
+            for veh in lane_vehicles:
+                posxy = self.eng.vehicle.getPosition(veh)
+                speed = self.eng.vehicle.getSpeed(veh)
+                distance = calculate_distance(posxy,self.position)
+                idx = int(distance // self.vehicle_gap)
+                if idx >= self.max_vehicle_num:
+                    continue
+                vehicle_array[idx,0] = distance
+                vehicle_array[idx,1] = speed
+            vehicle_array[lane] = vehicle_array
+        return vehicle_attr_value
+    #endregion
     
     def get_observation(self):
         obs = []

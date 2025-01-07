@@ -34,7 +34,7 @@ def net_2_struct(net):
                 lane_2_shape[lane_id].append((float(x),float(y)))
     intersection_2_position = defaultdict(tuple)
     for junc in root.findall('junction'):
-        if junc.get('type') == "traffic_light":
+        if "traffic_light" in junc.get('type'):
             intersection_2_position[junc.get('id')] = (float(junc.get('x')),float(junc.get('y')))
     # 每个交叉口要记录进edge和出edge，因为车辆的排队数量指标是从edge角度表示的
     # 每个交叉口也需要记录index与内部车道之间的对应关系，因为这和设置交叉口的状态有关。

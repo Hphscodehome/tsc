@@ -22,17 +22,20 @@ class World():
         intersection_2_updownstream=netconfig.intersection_2_updownstream
         lane_2_updownstream=netconfig.lane_2_updownstream
         intersection_2_position=netconfig.intersection_2_position
+        dict_net = netconfig.dict()
+        for keyr in dict_net.keys():
+            print(keyr,dict_net[keyr])
         self.eng = traci
         self.inters = [Intersection(self.eng,intersection_id,intersection_2_position[intersection_id],intersection_2_updownstream,lane_2_shape,lane_2_updownstream) for intersection_id in intersection_2_updownstream.keys()]
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg, "--remote-port", "8813"]
-        print(lane_2_shape)
-        print(intersection_2_updownstream)
-        print(lane_2_updownstream)
-        print(intersection_2_position)
     
 if __name__ == '__main__':
-    sumocfg = '/data/hupenghui/tsc/net.sumocfg'
+    sumocfg = '/data/hupenghui/LibSignal/data/raw_data/hangzhou_4x4_hetero/hangzhou_4x4_gudang_18041610_1h_m.sumocfg'
     world = World(sumocfg)
     print(__file__)
     print(__name__)
+    print(world.inters[0].id)
+    print(world.inters[0].upstream_lanes)
+    print(world.inters[0].downstream_lanes)
     print(world.inters[0].lanes_conflict_map)
+    
