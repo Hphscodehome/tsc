@@ -26,8 +26,11 @@ class Intersection():
         self.lane_2_shape = {lane:lane_2_shape[lane] for lane in self.traffic_light_lanes}
         self.lane_2_updownstream = {lane:lane_2_updownstream[lane] for lane in self.traffic_light_lanes}
         self.lanes_conflict_map = self.get_lanes_conflict_map()
+        # 全局设置
         self.vehicle_gap = 7.5
         self.max_vehicle_num = 40
+        self.veh_list = []
+        
         
     #region 统计冲突车道
     def get_lanes_conflict_map(self):
@@ -101,21 +104,15 @@ class Intersection():
               phase_str = self.eng.trafficlight.getRedYellowGreenState(self.id),
               phase_duration = self.eng.trafficlight.getPhaseDuration(self.id))
         return trafficlight_attr_value
+    
     #endregion
     
+    
     #region vehicle
-    def get_vehicle_map(self, option=0):
+    def get_vehicle_map(self):
         # 根据可控车道统计车辆信息
-        if option == 0 :
-            all_lanes = self.upstream_lanes + self.downstream_lanes
-        elif option == 1:
-            all_lanes = self.upstream_lanes
-        elif option == 2:
-            all_lanes = self.downstream_lanes
-        else:
-            raise 'Invalid option'
         vehicle_attr_value = defaultdict(lambda : np.array([]))
-        for lane in all_lanes:
+        for lane in self.upstream_lanes:
             vehicle_array = np.zeros((self.max_vehicle_num,2))
             lane_vehicles = self.eng.lane.getLastStepVehicleIDs(lane)
             for veh in lane_vehicles:
@@ -128,8 +125,77 @@ class Intersection():
                 vehicle_array[idx,0] = distance
                 vehicle_array[idx,1] = speed
             vehicle_array[lane] = vehicle_array
+        for lane in self.downstream_lanes:
+            vehicle_array = np.zeros((self.max_vehicle_num,2))
+            lane_vehicles = self.eng.lane.getLastStepVehicleIDs(lane)
+            for veh in lane_vehicles:
+                posxy = self.eng.vehicle.getPosition(veh)
+                speed = self.eng.vehicle.getSpeed(veh)
+                distance = calculate_distance(posxy,self.position)
+                idx = int(distance // self.vehicle_gap)
+                if idx >= self.max_vehicle_num:
+                    continue
+                vehicle_array[idx,0] = distance
+                vehicle_array[idx,1] = -speed
+            vehicle_array[lane] = vehicle_array
         return vehicle_attr_value
+    
+    def get_throughput_reward(self):
+        # 平均吞吐量
+        veh_list = []
+        for lane in self.upstream_lanes+self.downstream_lanes:
+            veh_list.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
+        cnt = 0
+        for veh in veh_list:
+            if veh in self.veh_list:
+                cnt += 1
+        throughput = (len(self.veh_list) - cnt)
+        self.veh_list = veh_list
+        return throughput / len(self.upstream_lanes+self.downstream_lanes)
+    
+    def get_queue_length_reward(self):
+        # 不太可靠的指标
+        return - np.mean([self.eng.lane.getLastStepHaltingNumber(lane) for lane in self.upstream_lanes+self.downstream_lanes])
+    
+    def get_delay_reward(self):
+        """time loss of vehicle in last action interval
+        Returns:
+            delay reward
+        """
+
+        max_vehicle_num = 40
+        delay_reward = 0
+
+        veh_time_loss_dict = {}
+
+        for i, lane in enumerate(self.lanes):
+            if lane in self.right_turn_lanes:
+                continue
+            # get lanes vehicles
+            lane_vehicles = self.eng.lane.getLastStepVehicleIDs(lane)
+            lane_length = self.lane_length[i]
+            for veh in lane_vehicles:
+                pos = self.eng.vehicle.getLanePosition(veh)
+                idx = int((lane_length - pos) // self.vehicle_gap)
+
+                # too far away vehicle, we do not consider
+                if idx >= max_vehicle_num:
+                    continue
+            
+                new_time_loss = self.eng.vehicle.getTimeLoss(veh)
+                if veh in self.veh_time_loss_dict:
+                    old_time_loss = self.veh_time_loss_dict[veh]
+                    delay_reward += (new_time_loss - old_time_loss)
+                
+                veh_time_loss_dict[veh] = new_time_loss
+        
+        self.veh_time_loss_dict = veh_time_loss_dict
+
+        return -delay_reward
+    
+    
     #endregion
+    
     
     def get_observation(self):
         obs = []
