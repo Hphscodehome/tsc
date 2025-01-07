@@ -15,6 +15,9 @@ class NetConfig(BaseModel):
     lane_2_updownstream: Dict[str,Dict[str,str]]
     intersection_2_position: Dict[str,Tuple[float,float]]
 
+class Vehicle(BaseModel):
+    AccumulatedWaitingTime: float
+
 '''
 def Phase(*args):
     phase_id: int = args[0]

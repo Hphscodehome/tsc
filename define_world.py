@@ -28,6 +28,38 @@ class World():
         self.eng = traci
         self.inters = [Intersection(self.eng,intersection_id,intersection_2_position[intersection_id],intersection_2_updownstream,lane_2_shape,lane_2_updownstream) for intersection_id in intersection_2_updownstream.keys()]
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg, "--remote-port", "8813"]
+        self.vehicles = None
+        
+    def step(self):
+        pass
+    #region global_reward
+    def get_throughput_reward(self):
+        # 平均吞吐量
+        veh_list = []
+        for lane in self.upstream_lanes+self.downstream_lanes:
+            veh_list.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
+        cnt = 0
+        for veh in veh_list:
+            if veh in self.veh_list:
+                cnt += 1
+        throughput = (len(self.veh_list) - cnt)
+        self.veh_list = veh_list
+        return throughput
+    
+    def get_queue_length_reward(self):
+        # 不太可靠的指标
+        return - np.mean([self.eng.lane.getLastStepHaltingNumber(lane) for lane in self.upstream_lanes+self.downstream_lanes])
+    
+    def get_delay_reward(self):
+        # 路网中车辆经过这个路网的平均等待时间，也就是等红灯的时间。
+        vehicles = self.eng.vehicle.getIDList()
+        total_delay = 0
+        leaved_vehicles = list(set(list(self.vehicles.keys()))-set(vehicles))
+        for veh in leaved_vehicles:
+            total_delay += self.vehicles[veh].AccumulatedWaitingTime
+        average_delay = total_delay/len(leaved_vehicles)
+        return -average_delay
+    #endregion
     
 if __name__ == '__main__':
     sumocfg = '/data/hupenghui/LibSignal/data/raw_data/hangzhou_4x4_hetero/hangzhou_4x4_gudang_18041610_1h_m.sumocfg'
