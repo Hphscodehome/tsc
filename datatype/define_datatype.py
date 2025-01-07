@@ -16,7 +16,11 @@ class NetConfig(BaseModel):
     intersection_2_position: Dict[str,Tuple[float,float]]
 
 class Vehicle(BaseModel):
-    AccumulatedWaitingTime: float
+    AccumulatedWaitingTime: float = 0.0
+    
+class Global_indicators(BaseModel):
+    throughput: int
+    average_delay: float
 
 '''
 def Phase(*args):
@@ -27,4 +31,5 @@ def Phase(*args):
 '''
 
 if __name__ == '__main__':
-    Phase(20,'rr',30.0)
+    item = Vehicle()
+    print(item.AccumulatedWaitingTime)

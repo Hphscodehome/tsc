@@ -53,7 +53,8 @@ class Intersection():
         return np.array(lanes_conflict_map)
     #endregion 
     
-    #region cheda
+    
+    #region 车道
     def get_lane_average_speed(self):
         # 平均速度平均速度越大，说明越不紧急
         lane_attr_value = defaultdict(float)
@@ -83,7 +84,8 @@ class Intersection():
         return lane_attr_value
     #endregion
     
-    #region edge
+    
+    #region 道路
     def get_edge_average_speed(self):
         pass
     
@@ -91,7 +93,8 @@ class Intersection():
         pass
     #endregion
     
-    #region phase_light
+    
+    #region 信号灯
     def get_current_phase(self):
         # 返回相位字符串、持续时间、索引index
         '''
@@ -107,7 +110,7 @@ class Intersection():
     #endregion
     
     
-    #region vehicle
+    #region 车辆
     def get_vehicle_map(self):
         # 根据可控车道统计车辆信息
         vehicle_attr_value = defaultdict(lambda : np.array([]))
@@ -140,7 +143,8 @@ class Intersection():
         return vehicle_attr_value
     #endregion
     
-    #region reward
+    
+    #region 奖励
     def get_throughput_reward(self):
         # 平均吞吐量
         veh_list = []

@@ -3,11 +3,13 @@ import traci
 import xml.etree.ElementTree as ET
 import os
 import sumolib
+from collections import defaultdict
 #endregion
 
 #region self-package
 from topology.from_config_to_topoplogy import net_2_struct
 from datatype.define_intersection_class import Intersection
+from datatype.define_datatype import Vehicle,Global_indicators
 #endregion
 
 class World():
@@ -28,37 +30,34 @@ class World():
         self.eng = traci
         self.inters = [Intersection(self.eng,intersection_id,intersection_2_position[intersection_id],intersection_2_updownstream,lane_2_shape,lane_2_updownstream) for intersection_id in intersection_2_updownstream.keys()]
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg, "--remote-port", "8813"]
-        self.vehicles = None
+        self.vehicles = defaultdict(Vehicle)
+        self.last_step_vehicles = []
         
     def step(self):
+        self.renew_global()
         pass
+    
+    def renew_global(self):
+        vehicles = self.eng.vehicle.getIDList()
+        for veh in vehicles:
+            self.vehicles[veh].AccumulatedWaitingTime = self.eng.vehicle.getAccumulatedWaitingTime(veh)
+    
     #region global_reward
     def get_throughput_reward(self):
-        # 平均吞吐量
-        veh_list = []
-        for lane in self.upstream_lanes+self.downstream_lanes:
-            veh_list.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
-        cnt = 0
-        for veh in veh_list:
-            if veh in self.veh_list:
-                cnt += 1
-        throughput = (len(self.veh_list) - cnt)
-        self.veh_list = veh_list
-        return throughput
-    
-    def get_queue_length_reward(self):
-        # 不太可靠的指标
-        return - np.mean([self.eng.lane.getLastStepHaltingNumber(lane) for lane in self.upstream_lanes+self.downstream_lanes])
-    
-    def get_delay_reward(self):
-        # 路网中车辆经过这个路网的平均等待时间，也就是等红灯的时间。
+        # 上个时间段离开路网的车辆数量 辆数
+        # 上个时间段离开路网的车辆通过路网的平均等待时间 秒每辆
         vehicles = self.eng.vehicle.getIDList()
+        leaved_vehicles = list(set(self.last_step_vehicles)-set(vehicles))
         total_delay = 0
-        leaved_vehicles = list(set(list(self.vehicles.keys()))-set(vehicles))
         for veh in leaved_vehicles:
             total_delay += self.vehicles[veh].AccumulatedWaitingTime
-        average_delay = total_delay/len(leaved_vehicles)
-        return -average_delay
+        if len(leaved_vehicles) != 0:
+            average_delay = total_delay/len(leaved_vehicles)
+        else:
+            average_delay = 0
+        throughput = len(leaved_vehicles)
+        self.last_step_vehicles = vehicles
+        return Global_indicators(throughput = throughput, average_delay = average_delay)
     #endregion
     
 if __name__ == '__main__':
