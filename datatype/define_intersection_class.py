@@ -10,7 +10,7 @@ import logging
 #endregion
 
 #region my-package
-from datatype.define_datatype import Phase
+from datatype.define_datatype import Phase,Indicators,Vehicle
 from utils.position import judge_cross,calculate_distance
 #endregion
 
@@ -29,7 +29,8 @@ class Intersection():
         # 全局设置
         self.vehicle_gap = 7.5
         self.max_vehicle_num = 40
-        self.veh_list = []
+        self.vehicles = defaultdict(Vehicle)
+        self.last_step_vehicles = []
         
         
     #region 统计冲突车道
@@ -143,34 +144,33 @@ class Intersection():
         return vehicle_attr_value
     #endregion
     
+    #region 更新
+    def renew(self):
+        vehicles = []
+        for lane in self.upstream_lanes+self.downstream_lanes:
+            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
+        for veh in vehicles:
+            self.vehicles[veh].AccumulatedWaitingTime += self.eng.vehicle.getWaitingTime(veh)
+    #endregion
     
     #region 奖励
-    def get_throughput_reward(self):
-        # 平均吞吐量
-        veh_list = []
+    def get_reward(self):
+        # 上个时间段离开路网的车辆数量 辆数
+        # 上个时间段离开路网的车辆通过路网的平均等待时间 秒每辆
+        vehicles = []
         for lane in self.upstream_lanes+self.downstream_lanes:
-            veh_list.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
-        cnt = 0
-        for veh in veh_list:
-            if veh in self.veh_list:
-                cnt += 1
-        throughput = (len(self.veh_list) - cnt)
-        self.veh_list = veh_list
-        return throughput
-    
-    def get_queue_length_reward(self):
-        # 不太可靠的指标
-        return - np.mean([self.eng.lane.getLastStepHaltingNumber(lane) for lane in self.upstream_lanes+self.downstream_lanes])
-    
-    def get_delay_reward(self):
-        # 上个时间段内的等待时间
-        total_waiting_time = 0
-        for i, lane in enumerate(self.upstream_lanes+self.downstream_lanes):
-            lane_vehicles = self.eng.lane.getLastStepVehicleIDs(lane)
-            for veh in lane_vehicles:
-                waiting_time = self.eng.vehicle.getWaitingTime(veh)
-                total_waiting_time += waiting_time
-        return -total_waiting_time
+            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
+        leaved_vehicles = list(set(self.last_step_vehicles)-set(vehicles))
+        total_delay = 0
+        for veh in leaved_vehicles:
+            total_delay += self.vehicles[veh].AccumulatedWaitingTime
+        if len(leaved_vehicles) != 0:
+            average_delay = total_delay/len(leaved_vehicles)
+        else:
+            average_delay = 0
+        throughput = len(leaved_vehicles)
+        self.last_step_vehicles = vehicles
+        return Indicators(throughput = throughput, average_delay = average_delay)
     #endregion
     
     #region test

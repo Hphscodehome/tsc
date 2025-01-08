@@ -18,7 +18,7 @@ class NetConfig(BaseModel):
 class Vehicle(BaseModel):
     AccumulatedWaitingTime: float = 0.0
     
-class Global_indicators(BaseModel):
+class Indicators(BaseModel):
     throughput: int
     average_delay: float
 

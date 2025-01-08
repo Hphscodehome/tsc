@@ -9,7 +9,7 @@ from collections import defaultdict
 #region self-package
 from topology.from_config_to_topoplogy import net_2_struct
 from datatype.define_intersection_class import Intersection
-from datatype.define_datatype import Vehicle,Global_indicators
+from datatype.define_datatype import Vehicle,Indicators
 #endregion
 
 class World():
@@ -37,7 +37,7 @@ class World():
         self.renew_global()
         pass
     
-    def renew_global(self):
+    def renew(self):
         vehicles = self.eng.vehicle.getIDList()
         for veh in vehicles:
             self.vehicles[veh].AccumulatedWaitingTime = self.eng.vehicle.getAccumulatedWaitingTime(veh)
@@ -57,7 +57,7 @@ class World():
             average_delay = 0
         throughput = len(leaved_vehicles)
         self.last_step_vehicles = vehicles
-        return Global_indicators(throughput = throughput, average_delay = average_delay)
+        return Indicators(throughput = throughput, average_delay = average_delay)
     #endregion
     
 if __name__ == '__main__':
