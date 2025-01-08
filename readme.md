@@ -11,6 +11,10 @@ def merge(single_line_embedding,all_lines_embedding,structure):
     (Mask(q@k))*v
     pass
 ```
+
+# 环境设置
+`python 3.9`+ `requirements.txt`
+
 # 参考的仓库
 不得不说，Eclipse的sumo的文档做的真是一坨大便。很多东西都不一样。
 

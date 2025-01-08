@@ -24,7 +24,7 @@ class World():
         intersection_2_updownstream=netconfig.intersection_2_updownstream
         lane_2_updownstream=netconfig.lane_2_updownstream
         intersection_2_position=netconfig.intersection_2_position
-        dict_net = netconfig.dict()
+        dict_net = netconfig.model_dump()
         for keyr in dict_net.keys():
             print(keyr,dict_net[keyr])
         self.eng = traci
@@ -34,7 +34,7 @@ class World():
         self.last_step_vehicles = []
         
     def step(self):
-        self.renew_global()
+        self.renew()
         pass
     
     def renew(self):
