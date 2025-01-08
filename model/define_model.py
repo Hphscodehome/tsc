@@ -19,18 +19,26 @@ from model.baseline import Model
 class AllattrModel(Model):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        print(kwargs)
         self.use_func = kwargs['use_func']
+        self.lane_in = 2
+        self.lane_out = 4
+        self.vehicle_in = 2
+        self.vehicle_out = 12
+        self.vehicle_head = 3
+        self.phase_size = 4
+        self.phase_out = 4
+        self.total_head = 4
         self.networks = defaultdict(list)
+        assert (self.vehicle_out+self.phase_out+self.lane_out)%self.total_head==0,'invalid head nums'
         for key in self.use_func:
             if 'lane' in key:
                 #batch * lanes * 2
                 self.networks[key] = [nn.Sequential(
-                    nn.Linear(2, 7),
+                    nn.Linear(self.lane_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, 4)
+                    nn.Linear(11, self.lane_out)
                 )]
             elif 'vehicle' in key:
                 # batch * lanes * length * 2
@@ -38,29 +46,29 @@ class AllattrModel(Model):
                 # length * (batch * lanes) * 2
                 # 添加qkv投影
                 self.networks[key].append((nn.Sequential(
-                    nn.Linear(2, 7),
+                    nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, 12)
+                    nn.Linear(11, self.vehicle_out)
                 ),nn.Sequential(
-                    nn.Linear(2, 7),
+                    nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, 12)
+                    nn.Linear(11, self.vehicle_out)
                 ),nn.Sequential(
-                    nn.Linear(2, 7),
+                    nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, 12)
+                    nn.Linear(11, self.vehicle_out)
                 )))
-                self.networks[key].append(nn.MultiheadAttention(12, 3))
+                self.networks[key].append(nn.MultiheadAttention(self.vehicle_out, self.vehicle_head))
             else:
-                self.networks[key].append(nn.Embedding(4, 4))
-        self.merge = nn.MultiheadAttention(12, 3)
-        self.output_layer = nn.Linear(12,1)
+                self.networks[key].append(nn.Embedding(self.phase_size, self.phase_out))
+        self.merge = nn.MultiheadAttention(self.vehicle_out+self.phase_out+self.lane_out, self.total_head)
+        self.output_layer = nn.Linear(self.vehicle_out+self.phase_out+self.lane_out,2)
     def forward(self,obs):
         emb = None
         for key in self.use_func:
@@ -81,6 +89,7 @@ class AllattrModel(Model):
                 keys = keys.transpose(0, 1)
                 values = values.transpose(0, 1)
                 embedding, embedding_weight = self.networks[key][1](querys,keys,values)
+                embedding = embedding.transpose(0, 1)
                 embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
                 embedding = embedding.reshape(batch_size,lanes_size,-1)# batch * lanes * emb
             else:
@@ -90,9 +99,10 @@ class AllattrModel(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
-        mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*3, 1, 1))
-        embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask)
-        embedding = embedding.reshape(batch_size,lanes_size,-1)
+        mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
+        mask = torch.tensor(mask,dtype=torch.float).to(self.device)
+        embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
+        embedding = embedding.transpose(0, 1)
         return self.output_layer(embedding)
     
     def preprocess_obs(self, obs):
