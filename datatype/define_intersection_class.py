@@ -3,15 +3,13 @@ import asyncio
 from functools import partial
 from collections import defaultdict
 import numpy as np
-#endregion
-
-#region temp
 import logging
 #endregion
 
 #region my-package
 from datatype.define_datatype import Phase,Indicators,Vehicle
 from utils.position import judge_cross,calculate_distance
+from utils.str_int import get_int
 #endregion
 
 class Intersection():
@@ -31,6 +29,15 @@ class Intersection():
         self.max_vehicle_num = 40
         self.vehicles = defaultdict(Vehicle)
         self.last_step_vehicles = []
+        self.all_obs_fn = {
+            "lane_average_speed": self.get_lane_average_speed,
+            "lane_vehicle_numbers": self.get_lane_vehicle_numbers,
+            "lane_halting_numbers": self.get_lane_halting_numbers,
+            "lane_waiting_time": self.get_lane_waiting_time,
+            "vehicle_map": self.get_vehicle_map, 
+            "current_phase": self.get_current_phase
+        }
+        self.obs_fn = ['vehicle_map','current_phase','lane_waiting_time','lane_halting_numbers','lane_vehicle_numbers','lane_average_speed']
         
         
     #region 统计冲突车道
@@ -144,6 +151,7 @@ class Intersection():
         return vehicle_attr_value
     #endregion
     
+    
     #region 更新
     def renew(self):
         vehicles = []
@@ -153,10 +161,11 @@ class Intersection():
             self.vehicles[veh].AccumulatedWaitingTime += self.eng.vehicle.getWaitingTime(veh)
     #endregion
     
+    
     #region 奖励
-    def get_reward(self):
+    def get_all_reward(self):
         # 上个时间段离开路网的车辆数量 辆数
-        # 上个时间段离开路网的车辆通过路网的平均等待时间 秒每辆
+        # 上个时间段离开路网的车辆通过路网的平均停车等待时间 秒每辆
         vehicles = []
         for lane in self.upstream_lanes+self.downstream_lanes:
             vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
@@ -173,28 +182,38 @@ class Intersection():
         return Indicators(throughput = throughput, average_delay = average_delay)
     #endregion
     
-    #region test
+    
+    #region observe
     def get_observation(self):
-        obs = []
-        lane_obs = []
+        #link 级别的观测结果
+        func_state = defaultdict(list)
+        func_state_final = defaultdict(np.array([]))
         for f in self.obs_fn:
-            if f in self.lane_obs_fn:
-                lane_obs.append(self.all_obs_fn[f]())
-        if len(lane_obs) > 1: 
-            obs.append(np.stack(lane_obs, axis=-1))
-        
-        for f in self.obs_fn:
-            if f not in self.lane_obs_fn:
-                obs.append(self.all_obs_fn[f]())
-        return np.array(obs, dtype='object')
+            obs = self.all_obs_fn[f]()
+            for index,link in enumerate(self.traffic_light_lanes):
+                up_lane = self.lane_2_updownstream[link]['from']
+                down_lane = self.lane_2_updownstream[link]['to']
+                if 'lane' in f:
+                    func_state[f].append([obs[up_lane],obs[down_lane]])
+                elif 'vehicle' in f:
+                    func_state[f].append(np.hstack((obs[up_lane],obs[down_lane])))
+                else:
+                    func_state[f].append(get_int(obs.phase_str[index]))
+            func_state_final[f] = np.stack(func_state[f],axis=0)
+            func_state_final['mask'] = self.lanes_conflict_map
+        return func_state_final
+    #endregion
     
     
+    #region reward
     def get_reward(self):
         reward = 0
-        for f, w in zip(self.reward_fn, self.reward_weight):
-            reward += w * self.all_reward_fn[f]()
+        indicator = self.get_all_reward()
+        reward += -0.7*indicator.average_delay
+        reward += -0.3*indicator.throughput
         return reward
     #endregion
+    
     
 if __name__ == '__main__':
     True
