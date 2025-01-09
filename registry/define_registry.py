@@ -12,4 +12,4 @@ class Registry:
             return f
         return wrap
 
-# Registry()
+Registry()
