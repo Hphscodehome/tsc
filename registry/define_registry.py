@@ -1,4 +1,7 @@
+#region other-package
 from collections import defaultdict
+#endregion
+
 
 class Registry:
     mapping = defaultdict(dict)

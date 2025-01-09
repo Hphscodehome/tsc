@@ -7,7 +7,7 @@ import sumolib
 from collections import defaultdict
 #endregion
 
-#region self-package
+#region my-package
 from topology.from_config_to_topoplogy import net_2_struct
 from datatype.define_intersection_class import Intersection
 from datatype.define_datatype import Vehicle,Indicators
