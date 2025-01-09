@@ -4,12 +4,14 @@ from functools import partial
 from collections import defaultdict
 import numpy as np
 import logging
+import torch
 #endregion
 
 #region my-package
 from datatype.define_datatype import Phase,Indicators,Vehicle
 from utils.position import judge_cross,calculate_distance
-from utils.str_int import get_int
+from utils.str_int import get_int,get_char
+from utils.constants import Chars
 #endregion
 
 class Intersection():
@@ -38,8 +40,49 @@ class Intersection():
             "current_phase": self.get_current_phase
         }
         self.obs_fn = ['vehicle_map','current_phase','lane_waiting_time','lane_halting_numbers','lane_vehicle_numbers','lane_average_speed']
+    
+    #region 设置相位 
+    def get_phase(self,action):
+        # action lanes*2
+        # lanes*1是link重要性
+        # lanes*2是link变不变
+        # 结合冲突车道确定下一个可以选择的link。
+        phase = self.get_current_phase()
+        phase_str = phase.phase_str
+        result = ['' for _ in range(len(phase_str))]
+        mask = torch.tensor([False for _ in range(len(phase_str))])
+        logits = torch.tensor(action[:,0])
+        while '' in result:
+            filtered_logits = logits[~mask]  # 取反mask，保留False对应的logits
+            indices = torch.arange(len(mask))[~mask]  # 获取mask为False的索引
+            distribution = torch.distributions.Categorical(logits=filtered_logits)
+            lane_sample = distribution.sample().item()
+            lane_sample = indices[lane_sample].item()
+            id = get_int(phase_str[lane_sample])
+            probability = torch.sigmoid(action[lane_sample,1])
+            distribution = torch.distributions.Bernoulli(probability)# 创建一个Bernoulli分布
+            change_sample = distribution.sample().item()
+            if change_sample == 1:
+                id += 1
+                id = id % Chars
+            lane_char = get_char(id)
+            result[lane_sample] = lane_char
+            if lane_char != 'r':
+                conflict_lanes =(torch.tensor(self.lanes_conflict_map[lane_sample,:])>0)
+                mask = mask | conflict_lanes
+                for index,flag in enumerate(conflict_lanes):
+                    if flag:
+                        result[index] = 'r'
+            mask[lane_sample] = True
+        self.set_phase = ''.join(result)
+        self.eng.trafficlight.setRedYellowGreenState(self.id,self.set_phase)
         
-        
+    def step(self,action):
+        # action
+        self.get_phase(action)
+    #endregion
+    
+    
     #region 统计冲突车道
     def get_lanes_conflict_map(self):
         # 找到各个车道之间哪个与哪个是冲突的。根据坐标信息。
@@ -163,7 +206,7 @@ class Intersection():
     
     
     #region 奖励
-    def get_all_reward(self):
+    def get_all_info(self):
         # 上个时间段离开路网的车辆数量 辆数
         # 上个时间段离开路网的车辆通过路网的平均停车等待时间 秒每辆
         vehicles = []
@@ -182,12 +225,11 @@ class Intersection():
         return Indicators(throughput = throughput, average_delay = average_delay)
     #endregion
     
-    
     #region observe
     def get_observation(self):
         #link 级别的观测结果
         func_state = defaultdict(list)
-        func_state_final = defaultdict(np.array([]))
+        func_state_final = defaultdict(lambda: np.array([]))
         for f in self.obs_fn:
             obs = self.all_obs_fn[f]()
             for index,link in enumerate(self.traffic_light_lanes):
@@ -200,7 +242,7 @@ class Intersection():
                 else:
                     func_state[f].append(get_int(obs.phase_str[index]))
             func_state_final[f] = np.stack(func_state[f],axis=0)
-            func_state_final['mask'] = self.lanes_conflict_map
+        func_state_final['mask'] = self.lanes_conflict_map
         return func_state_final
     #endregion
     
@@ -208,10 +250,15 @@ class Intersection():
     #region reward
     def get_reward(self):
         reward = 0
-        indicator = self.get_all_reward()
+        indicator = self.get_all_info()
         reward += -0.7*indicator.average_delay
         reward += -0.3*indicator.throughput
-        return reward
+        return reward, indicator
+    #endregion
+    
+    #region done
+    def get_done(self):
+        return False
     #endregion
     
     
