@@ -37,7 +37,7 @@ class World(gym.Env):
         self.vehicles = defaultdict(Vehicle)
         self.last_step_vehicles = []
         self.action_interval = 10
-        print(self.reset())
+        self.reset()
     
     def close(self):
         self.eng.close()
@@ -72,7 +72,8 @@ class World(gym.Env):
     def renew(self):
         vehicles = self.eng.vehicle.getIDList()
         for veh in vehicles:
-            self.vehicles[veh].AccumulatedWaitingTime = self.eng.vehicle.getAccumulatedWaitingTime(veh)
+            if self.eng.vehicle.getWaitingTime(veh) != 0:
+                self.vehicles[veh].AccumulatedWaitingTime += 1
         for index, inter in enumerate(self.inters):
             inter.renew()
             
@@ -116,6 +117,7 @@ class World(gym.Env):
         self.last_step_vehicles = vehicles
         return Indicators(throughput = throughput, average_delay = average_delay)
     #endregion
+    
     
 if __name__ == '__main__':
     sumocfg = '/data/hupenghui/TSC/data/syn1_1x1_1h/data.sumocfg'

@@ -155,7 +155,7 @@ class Intersection():
         trafficlight_attr_value['phase_duration'] = self.eng.trafficlight.getPhaseDuration(self.id)
         '''
         trafficlight_attr_value = Phase(phase_id = self.eng.trafficlight.getPhase(self.id),
-              phase_str = self.eng.trafficlight.getRedYellowGreenState(self.id),
+              phase_str = self.eng.trafficlight.getRedYellowGreenState(self.id).lower(),
               phase_duration = self.eng.trafficlight.getPhaseDuration(self.id))
         return trafficlight_attr_value
     #endregion
@@ -201,29 +201,10 @@ class Intersection():
         for lane in self.upstream_lanes+self.downstream_lanes:
             vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
         for veh in vehicles:
-            self.vehicles[veh].AccumulatedWaitingTime += self.eng.vehicle.getWaitingTime(veh)
+            if self.eng.vehicle.getWaitingTime(veh) != 0:
+                self.vehicles[veh].AccumulatedWaitingTime += 1
     #endregion
     
-    
-    #region 奖励
-    def get_all_info(self):
-        # 上个时间段离开路网的车辆数量 辆数
-        # 上个时间段离开路网的车辆通过路网的平均停车等待时间 秒每辆
-        vehicles = []
-        for lane in self.upstream_lanes+self.downstream_lanes:
-            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
-        leaved_vehicles = list(set(self.last_step_vehicles)-set(vehicles))
-        total_delay = 0
-        for veh in leaved_vehicles:
-            total_delay += self.vehicles[veh].AccumulatedWaitingTime
-        if len(leaved_vehicles) != 0:
-            average_delay = total_delay/len(leaved_vehicles)
-        else:
-            average_delay = 0
-        throughput = len(leaved_vehicles)
-        self.last_step_vehicles = vehicles
-        return Indicators(throughput = throughput, average_delay = average_delay)
-    #endregion
     
     #region observe
     def get_observation(self):
@@ -259,6 +240,27 @@ class Intersection():
     #region done
     def get_done(self):
         return False
+    #endregion
+    
+    
+    #region 奖励
+    def get_all_info(self):
+        # 上个时间段离开路网的车辆数量 辆数
+        # 上个时间段离开路网的车辆通过路网的平均停车等待时间 秒每辆
+        vehicles = []
+        for lane in self.upstream_lanes+self.downstream_lanes:
+            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
+        leaved_vehicles = list(set(self.last_step_vehicles)-set(vehicles))
+        total_delay = 0
+        for veh in leaved_vehicles:
+            total_delay += self.vehicles[veh].AccumulatedWaitingTime
+        if len(leaved_vehicles) != 0:
+            average_delay = total_delay/len(leaved_vehicles)
+        else:
+            average_delay = 0
+        throughput = len(leaved_vehicles)
+        self.last_step_vehicles = vehicles
+        return Indicators(throughput = throughput, average_delay = average_delay)
     #endregion
     
     
