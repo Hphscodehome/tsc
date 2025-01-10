@@ -1,6 +1,6 @@
 #region other-package
 import gymnasium as gym
-import traci
+import libsumo as traci
 import xml.etree.ElementTree as ET
 import os
 import sumolib
