@@ -1,0 +1,6 @@
+cfnat-windows-amd64.exe -num=20
+# 只能随机ip，否则的话cloudflare会把你给禁掉，导致你哪里都访问不了。
+# 过犹不及
+# 如果ipnum设置的比较高，就会导致访问过多的话，就会被cloudflare当做Ddos攻击，然后把当前公网ip给封禁掉，就会导致同一个公网ip下的所有终端无法访问由cloudflare提供cdn服务的网站。
+# 这个cfnat测试延迟的服务，不能设置太高的测试数量，否则会被cloudflare当做ddos攻击，导致当前公网ip被cloudflare封禁，进而导致当前公网ip下的所有终端无法访问由cloudflare提供cdn服务的网站，直接表现就是所有节点都是红色，无法连接的状态。
+# 解决措施就是把cfnat的参数改一下，把负载ip的数量修改为20.应该会比较稳定一些。
