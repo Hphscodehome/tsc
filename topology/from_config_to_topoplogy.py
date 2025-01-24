@@ -63,5 +63,5 @@ def net_2_struct(net):
               intersection_2_position=intersection_2_position)
     
 if __name__ == '__main__':
-    net = '/data/hupenghui/tsc/net.net.xml'
+    net = '/data/hupenghui/Self/tsc/net.net.xml'
     print(net_2_struct(net))

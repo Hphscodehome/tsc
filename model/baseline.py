@@ -12,7 +12,8 @@ class Model(nn.Module):
     def __init__(self, **kwargs):
         """base class
         :param model_type: str, actor(output is probability), critic(output is max action value as state value), defaults to None(output is all action value)
-        :param device: defaults to 'cuda:0'
+        :param device: defaults to 'cpu'
+        :param log_dir: defaults to './log/'
         """
         super().__init__()
         print(kwargs)
@@ -54,7 +55,7 @@ class MLPModel(Model):
         :param model_type: str, actor, critic, None
         :param device: str
         """
-        super().__init__(kwargs)
+        super().__init__(**kwargs)
         self.input_dim = kwargs['input_dim']
         self.output_dim = kwargs['output_dim']
         self.model = nn.Sequential(
@@ -87,8 +88,8 @@ class MLPModel(Model):
 
     
 class FRAPModel(Model):
-    def __init__(self, input_dim, output_dim, *args):
-        super().__init__(args)
+    def __init__(self, input_dim, output_dim, **kargs):
+        super().__init__(**kargs)
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.embedding_dim = 16

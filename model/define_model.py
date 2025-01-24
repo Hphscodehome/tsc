@@ -18,6 +18,9 @@ from model.baseline import Model
 @Registry.register('actor','feature_specific')
 class feature_specific_Model(Model):
     def __init__(self, **kwargs):
+        """
+        :param use_func: list[str]
+        """
         super().__init__(**kwargs)
         self.use_func = kwargs['use_func']
         self.lane_in = 2
