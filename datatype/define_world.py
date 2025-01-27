@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import os
 import sumolib
 from collections import defaultdict
+import logging
 #endregion
 
 #region my-package
@@ -28,7 +29,7 @@ class World(gym.Env):
         self.intersection_2_position=netconfig.intersection_2_position
         dict_net = netconfig.model_dump()
         for keyr in dict_net.keys():
-            print(keyr,dict_net[keyr])
+            logging.info(f"{keyr},{dict_net[keyr]}")
             
         self.eng = traci
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg]
@@ -46,7 +47,7 @@ class World(gym.Env):
         try:
             self.close()
         except:
-            print('还没开始')
+            logging.info(f"还没开始")
         self.eng.start(self.cmd)
         self.inters = [Intersection(self.eng, intersection_id, self.intersection_2_position[intersection_id], self.intersection_2_updownstream, self.lane_2_shape, self.lane_2_updownstream) for intersection_id in self.intersection_2_updownstream.keys()]
         self.vehicles = defaultdict(lambda : Vehicle())
