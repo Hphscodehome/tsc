@@ -29,7 +29,7 @@ class Intersection():
         # 全局设置
         self.vehicle_gap = 7.5
         self.max_vehicle_num = 40
-        self.vehicles = defaultdict(Vehicle)
+        self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
         self.all_obs_fn = {
             "lane_average_speed": self.get_lane_average_speed,
@@ -58,14 +58,14 @@ class Intersection():
             distribution = torch.distributions.Categorical(logits=filtered_logits)
             lane_sample = distribution.sample().item()
             lane_sample = indices[lane_sample].item()
-            id = get_int(phase_str[lane_sample])
+            _id = get_int(phase_str[lane_sample])
             probability = torch.sigmoid(action[lane_sample,1])
             distribution = torch.distributions.Bernoulli(probability)# 创建一个Bernoulli分布
             change_sample = distribution.sample().item()
             if change_sample == 1:
-                id += 1
-                id = id % Chars
-            lane_char = get_char(id)
+                _id += 1
+                _id = _id % Chars
+            lane_char = get_char(_id)
             result[lane_sample] = lane_char
             if lane_char != 'r':
                 conflict_lanes =(torch.tensor(self.lanes_conflict_map[lane_sample,:])>0)
@@ -175,7 +175,7 @@ class Intersection():
                 idx = int(distance // self.vehicle_gap)
                 if idx >= self.max_vehicle_num:
                     continue
-                vehicle_array[idx,0] = distance
+                vehicle_array[idx,0] = 1.0
                 vehicle_array[idx,1] = speed
             vehicle_attr_value[lane] = vehicle_array
         for lane in self.downstream_lanes:
@@ -188,21 +188,10 @@ class Intersection():
                 idx = int(distance // self.vehicle_gap)
                 if idx >= self.max_vehicle_num:
                     continue
-                vehicle_array[idx,0] = distance
+                vehicle_array[idx,0] = 1.0
                 vehicle_array[idx,1] = -speed
             vehicle_attr_value[lane] = vehicle_array
         return vehicle_attr_value
-    #endregion
-    
-    
-    #region 更新
-    def renew(self):
-        vehicles = []
-        for lane in self.upstream_lanes+self.downstream_lanes:
-            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
-        for veh in vehicles:
-            if self.eng.vehicle.getWaitingTime(veh) != 0:
-                self.vehicles[veh].AccumulatedWaitingTime += 1
     #endregion
     
     
@@ -228,14 +217,16 @@ class Intersection():
     #endregion
     
     
-    #region reward
-    def get_reward(self):
-        reward = 0
-        indicator = self.get_all_info()
-        reward += -0.7*indicator.average_delay
-        reward += -0.3*indicator.throughput
-        return reward, indicator
+    #region 更新
+    def renew(self):
+        vehicles = []
+        for lane in self.upstream_lanes+self.downstream_lanes:
+            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
+        for veh in vehicles:
+            if self.eng.vehicle.getWaitingTime(veh) != 0:
+                self.vehicles[veh].AccumulatedWaitingTime += 1
     #endregion
+    
     
     #region done
     def get_done(self):
@@ -261,6 +252,16 @@ class Intersection():
         throughput = len(leaved_vehicles)
         self.last_step_vehicles = vehicles
         return Indicators(throughput = throughput, average_delay = average_delay)
+    #endregion
+    
+    
+    #region reward
+    def get_reward(self):
+        reward = 0
+        indicator = self.get_all_info()
+        reward += -0.7*indicator.average_delay
+        reward += -0.3*indicator.throughput
+        return reward, indicator
     #endregion
     
     
