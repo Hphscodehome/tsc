@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tlLogics xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tllogic_file.xsd">
+	<tlLogic id="intersection_1_1" offset="0" programID="0" type="static">
+		<phase duration="30" state="GGrrrrrrGGrrrrrr"/>
+		<phase duration="30" state="rrGGrrrrrrGGrrrr"/>
+		<phase duration="30" state="rrrrGGrrrrrrGGrr"/>
+		<phase duration="30" state="rrrrrrGGrrrrrrGG"/>
+	</tlLogic>
+</tlLogics>

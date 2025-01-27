@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edgedata>
+	<interval begin="0" end="900">
+		<edge id="road_1_1_0" value="0.65"/>
+		<edge id="road_1_1_1" value="0.76"/>
+		<edge id="road_1_1_2" value="0.72"/>
+		<edge id="road_1_1_3" value="0.65"/>
+	</interval>
+	<interval begin="900" end="1800">
+		<edge id="road_1_1_0" value="0.81"/>
+		<edge id="road_1_1_1" value="0.57"/>
+		<edge id="road_1_1_2" value="0.65"/>
+		<edge id="road_1_1_3" value="0.68"/>
+	</interval>
+	<interval begin="1800" end="2700">
+		<edge id="road_1_1_0" value="0.73"/>
+		<edge id="road_1_1_1" value="0.89"/>
+		<edge id="road_1_1_2" value="0.6"/>
+		<edge id="road_1_1_3" value="0.76"/>
+	</interval>
+	<interval begin="2700" end="3600">
+		<edge id="road_1_1_0" value="0.8"/>
+		<edge id="road_1_1_1" value="0.52"/>
+		<edge id="road_1_1_2" value="0.8"/>
+		<edge id="road_1_1_3" value="0.59"/>
+	</interval>
+</edgedata>
