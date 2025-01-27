@@ -34,7 +34,7 @@ class World(gym.Env):
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg]
         
         self.inters = [Intersection(self.eng, intersection_id, self.intersection_2_position[intersection_id], self.intersection_2_updownstream, self.lane_2_shape, self.lane_2_updownstream) for intersection_id in self.intersection_2_updownstream.keys()]
-        self.vehicles = defaultdict(Vehicle)
+        self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
         self.action_interval = 10
         self.reset()
@@ -49,7 +49,7 @@ class World(gym.Env):
             print('还没开始')
         self.eng.start(self.cmd)
         self.inters = [Intersection(self.eng, intersection_id, self.intersection_2_position[intersection_id], self.intersection_2_updownstream, self.lane_2_shape, self.lane_2_updownstream) for intersection_id in self.intersection_2_updownstream.keys()]
-        self.vehicles = defaultdict(Vehicle)
+        self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
         
         self.n_agent = len(self.inters)
@@ -85,7 +85,7 @@ class World(gym.Env):
     
     def _get_reward_info(self):
         rewards = defaultdict(float)
-        infos = defaultdict(Indicators)
+        infos = defaultdict(lambda :Indicators())
         for index, inter in enumerate(self.inters):
             reward, indicator = inter.get_reward()
             rewards[inter.id] = reward
@@ -120,7 +120,7 @@ class World(gym.Env):
     
     
 if __name__ == '__main__':
-    sumocfg = '/data/hupenghui/TSC/data/syn1_1x1_1h/data.sumocfg'
+    sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
     world = World(sumocfg)
     print(__file__)
     print(__name__)
