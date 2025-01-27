@@ -6,3 +6,4 @@ libsumo
 sumolib
 gymnasium
 torch
+tensorboard

@@ -5,6 +5,7 @@ import numpy as np
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from functools import partial
+import logging
 #endregion
 
 
@@ -16,7 +17,7 @@ class Model(nn.Module):
         :param log_dir: defaults to './log/'
         """
         super().__init__()
-        print(kwargs)
+        logging.info(f"{kwargs}")
         model_type, device, log_dir = kwargs['model_type'], kwargs['device'], kwargs['log_dir'],
         assert model_type in [None, "actor", "critic"]
         self.model_type = model_type
