@@ -8,7 +8,6 @@ import logging
 from model.define_model import feature_specific_Model
 from registry.define_registry import Registry
 from utils.constants import obs_fn
-print(Registry.mapping)
 #endregion
 
 class World_agent():
@@ -28,4 +27,7 @@ class World_agent():
             actions[inter_id] = self.actors[inter_id](obs[inter_id])
         return actions
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    logging.info(f"{Registry.mapping}")
+    logging.info(f"nihao")
     True
