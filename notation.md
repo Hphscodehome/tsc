@@ -13,4 +13,9 @@ World:
 World_actors:
     obs: Dict[Intersection.observation]
     actions: Dict[torch.tensor]
+
+Game:
+    World:
+    World_actors:
+    Recoder: Dict['actor',Dict['attr',value]]
     

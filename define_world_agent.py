@@ -26,6 +26,8 @@ class World_agent():
         for inter_id in list(self.actors.keys()):
             actions[inter_id] = self.actors[inter_id](obs[inter_id])
         return actions
+    def optimize(self,records):
+        pass
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     logging.info(f"{Registry.mapping}")
