@@ -44,6 +44,16 @@ class Game():
         logging.info(f"Recoder:\n{self.recoder}")
         logging.info(f"Infos:\n{self.infos}")
         
+    def train_actor(self,batch_record):
+        for actor_id in self.world_agent.actors.keys():
+            actor = self.world_agent.actors[actor_id]
+            batch_obs = batch_record[actor_id]
+            actor.optimize(batch_obs)
+        pass
+    def train_critic(self,batch_record):
+        
+        pass
+        
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
