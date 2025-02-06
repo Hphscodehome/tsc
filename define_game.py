@@ -3,6 +3,8 @@ import torch
 from collections import defaultdict,deque
 import logging
 import time
+import asyncio
+import pdb
 #endregion
 
 #region my-package
@@ -44,21 +46,20 @@ class Game():
         logging.info(f"Recoder:\n{self.recoder}")
         logging.info(f"Infos:\n{self.infos}")
         
-    def train_actor(self,batch_record):
-        for actor_id in self.world_agent.actors.keys():
-            actor = self.world_agent.actors[actor_id]
-            batch_obs = batch_record[actor_id]
-            actor.optimize(batch_obs)
-        pass
-    def train_critic(self,batch_record):
+    async def train(self):
+        #pdb.set_trace()
+        await self.world_agent.optimize(self.recoder)
         
-        pass
-        
-
-if __name__ == '__main__':
+async def main():
     logging.basicConfig(level=logging.INFO)
     sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
     game = Game(sumocfg=sumocfg)
     game.play()
-    True
+    await game.train()
+    pdb.set_trace()
+    print(game.cfg)
+    
+if __name__ == '__main__':
+    pdb.set_trace()
+    asyncio.run(main())
     
