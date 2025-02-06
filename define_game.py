@@ -56,10 +56,10 @@ async def main():
     game = Game(sumocfg=sumocfg)
     game.play()
     await game.train()
-    pdb.set_trace()
-    print(game.cfg)
+    #pdb.set_trace()
+    logging.info(f"{game.cfg}")
     
 if __name__ == '__main__':
-    pdb.set_trace()
+    #pdb.set_trace()
     asyncio.run(main())
     

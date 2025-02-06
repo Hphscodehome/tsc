@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from collections import defaultdict
 import numpy as np
+import pdb
 #endregion
 
 
@@ -39,23 +40,24 @@ class feature_specific_Model_actor(Model):
                 self.merge_in += self.vehicle_out
             else:
                 self.merge_in += self.phase_out
-        self.networks = defaultdict(list)
+        self.networks = nn.ModuleDict()
         assert self.merge_in%self.total_head==0,'invalid head nums'
         for key in self.use_func:
             if 'lane' in key:
                 #batch * lanes * 2
-                self.networks[key] = [nn.Sequential(
+                self.networks[key] = nn.ModuleList([nn.Sequential(
                     nn.Linear(self.lane_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
                     nn.LeakyReLU(),
                     nn.Linear(11, self.lane_out)
-                )]
+                )])
             elif 'vehicle' in key:
                 # batch * lanes * length * 2
                 # (batch * lanes) * length * 2
                 # length * (batch * lanes) * 2
                 # 添加qkv投影
+                '''
                 self.networks[key].append((nn.Sequential(
                     nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
@@ -76,8 +78,18 @@ class feature_specific_Model_actor(Model):
                     nn.Linear(11, self.vehicle_out)
                 )))
                 self.networks[key].append(nn.MultiheadAttention(self.vehicle_out, self.vehicle_head))
+                '''
+                qkv = nn.ModuleList([nn.Sequential(
+                    nn.Linear(self.vehicle_in, 7),
+                    nn.LeakyReLU(),
+                    nn.Linear(7, 11),
+                    nn.LeakyReLU(),
+                    nn.Linear(11, self.vehicle_out)
+                ) for _ in range(3)])  # 三个网络对应Q, K, V
+                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head)])
             else:
-                self.networks[key].append(nn.Embedding(self.phase_size, self.phase_out))
+                #self.networks[key].append(nn.Embedding(self.phase_size, self.phase_out))
+                self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.output_layer = nn.Linear(self.merge_in,2)
         
@@ -114,7 +126,8 @@ class feature_specific_Model_actor(Model):
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
-        mask = torch.tensor(mask,dtype=torch.float).to(self.device)
+        mask = mask.clone().detach().to(self.device).type(torch.float)
+        #mask = torch.tensor(mask,dtype=torch.float).to(self.device)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
@@ -145,16 +158,17 @@ class feature_specific_Model_actor(Model):
             stat = [item[key] for item in obs]
             stat = np.stack(stat)
             if 'phase' in key:
-                stat = torch.from_numpy(stat).float().to(self.device)
-            else:
                 stat = torch.from_numpy(stat).long().to(self.device)
+            else:
+                stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
+        #pdb.set_trace()
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
     def forward_batch(self,obs):
-        self.memory.append(obs)
-        obs = self.preprocess_obs(obs)
+        #pdb.set_trace()
+        obs = self.preprocess_batch_obs(obs)
         emb = None
         for key in self.use_func:
             batch_size = len(obs[key])
@@ -184,11 +198,15 @@ class feature_specific_Model_actor(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
+        #pdb.set_trace()
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
-        mask = torch.tensor(mask,dtype=torch.float).to(self.device)
+        mask = mask.clone().detach().to(self.device).type(torch.float)
+        #mask = torch.tensor(mask,dtype=torch.float).to(self.device)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        return self.output_layer(embedding)
+        embedding = self.output_layer(embedding)
+        action = torch.squeeze(embedding).cpu()
+        return action
 
 @Registry.register('critic','feature_specific')
 class feature_specific_Model_critic(Model):
@@ -214,23 +232,24 @@ class feature_specific_Model_critic(Model):
                 self.merge_in += self.vehicle_out
             else:
                 self.merge_in += self.phase_out
-        self.networks = defaultdict(list)
+        self.networks = nn.ModuleDict()
         assert self.merge_in%self.total_head==0,'invalid head nums'
         for key in self.use_func:
             if 'lane' in key:
                 #batch * lanes * 2
-                self.networks[key] = [nn.Sequential(
+                self.networks[key] = nn.ModuleList([nn.Sequential(
                     nn.Linear(self.lane_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
                     nn.LeakyReLU(),
                     nn.Linear(11, self.lane_out)
-                )]
+                )])
             elif 'vehicle' in key:
                 # batch * lanes * length * 2
                 # (batch * lanes) * length * 2
                 # length * (batch * lanes) * 2
                 # 添加qkv投影
+                '''
                 self.networks[key].append((nn.Sequential(
                     nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
@@ -251,8 +270,18 @@ class feature_specific_Model_critic(Model):
                     nn.Linear(11, self.vehicle_out)
                 )))
                 self.networks[key].append(nn.MultiheadAttention(self.vehicle_out, self.vehicle_head))
+                '''
+                qkv = nn.ModuleList([nn.Sequential(
+                    nn.Linear(self.vehicle_in, 7),
+                    nn.LeakyReLU(),
+                    nn.Linear(7, 11),
+                    nn.LeakyReLU(),
+                    nn.Linear(11, self.vehicle_out)
+                ) for _ in range(3)])  # 三个网络对应Q, K, V
+                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head)])
             else:
-                self.networks[key].append(nn.Embedding(self.phase_size, self.phase_out))
+                #self.networks[key].append(nn.Embedding(self.phase_size, self.phase_out))
+                self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.output_layer = nn.Linear(self.merge_in,1)
         
@@ -289,11 +318,14 @@ class feature_specific_Model_critic(Model):
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
-        mask = torch.tensor(mask,dtype=torch.float).to(self.device)
+        mask = mask.clone().detach().to(self.device).type(torch.float)
+        #mask = torch.tensor(mask,dtype=torch.float).to(self.device)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        value = self.output_layer(embedding)
-        return value
+        embedding = self.output_layer(embedding)
+        embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
+        return embedding
+    
     
     def preprocess_obs(self, obs):
         """preprocess observation to tensor
@@ -319,16 +351,17 @@ class feature_specific_Model_critic(Model):
             stat = [item[key] for item in obs]
             stat = np.stack(stat)
             if 'phase' in key:
-                stat = torch.from_numpy(stat).float().to(self.device)
-            else:
                 stat = torch.from_numpy(stat).long().to(self.device)
+            else:
+                stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
+        #pdb.set_trace()
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
     def forward_batch(self,obs):
-        self.memory.append(obs)
-        obs = self.preprocess_obs(obs)
+        #pdb.set_trace()
+        obs = self.preprocess_batch_obs(obs)
         emb = None
         for key in self.use_func:
             batch_size = len(obs[key])
@@ -358,9 +391,13 @@ class feature_specific_Model_critic(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
+        #pdb.set_trace()
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
-        mask = torch.tensor(mask,dtype=torch.float).to(self.device)
+        mask = mask.clone().detach().to(self.device).type(torch.float)
+        #mask = torch.tensor(mask,dtype=torch.float).to(self.device)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        return self.output_layer(embedding)
+        embedding = self.output_layer(embedding)
+        embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
+        return embedding
     
