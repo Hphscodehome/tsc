@@ -43,20 +43,24 @@ class Game():
             self.infos.append(infos)
             self.state = obs
             step += 1
-        logging.info(f"Recoder:\n{self.recoder}")
-        logging.info(f"Infos:\n{self.infos}")
+        #logging.info(f"Recoder:\n{self.recoder}")
+        #logging.info(f"Infos:\n{self.infos}")
         
     async def train(self):
         #pdb.set_trace()
         await self.world_agent.optimize(self.recoder)
+        self.recoder = defaultdict(lambda: defaultdict(lambda: deque(maxlen=self.max_length)))
+        self.infos = deque(maxlen=self.max_length)
         
 async def main():
     logging.basicConfig(level=logging.INFO)
     sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
     game = Game(sumocfg=sumocfg)
-    game.play()
+    game.play(end=1000)
     await game.train()
-    #pdb.set_trace()
+    game.play(end=1000)
+    await game.train()
+    # pdb.set_trace()
     logging.info(f"{game.cfg}")
     
 if __name__ == '__main__':

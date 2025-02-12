@@ -5,6 +5,7 @@ from collections import defaultdict
 import numpy as np
 import logging
 import torch
+import math
 #endregion
 
 #region my-package
@@ -51,7 +52,9 @@ class Intersection():
         phase_str = phase.phase_str
         result = ['' for _ in range(len(phase_str))]
         mask = torch.tensor([False for _ in range(len(phase_str))])
-        logits = torch.tensor(action[:,0])
+        #logging.info(action)
+        logits = action[:,0].clone().detach() #torch.tensor(action[:,0])
+        #logging.info(logits)
         while '' in result:
             filtered_logits = logits[~mask]  # 取反mask，保留False对应的logits
             indices = torch.arange(len(mask))[~mask]  # 获取mask为False的索引
@@ -238,10 +241,18 @@ class Intersection():
     def get_all_info(self):
         # 上个时间段离开路网的车辆数量 辆数
         # 上个时间段离开路网的车辆通过路网的平均停车等待时间 秒每辆
+        # 上个时间段内离开路网的车辆数量与路网内等待的车辆数量
+        # 上个时间段内等待时间的增加程度
         vehicles = []
         for lane in self.upstream_lanes+self.downstream_lanes:
             vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
-        leaved_vehicles = list(set(self.last_step_vehicles)-set(vehicles))
+        laststep_vehicles = self.last_step_vehicles
+        total_vehicles = list(set(vehicles) | set(self.last_step_vehicles))
+        
+        getin_vehicles = list(set(vehicles) - set(self.last_step_vehicles))
+        
+        leaved_vehicles = list(set(self.last_step_vehicles) - set(vehicles))
+        # 总延迟，并非当前动作的结果，是累积动作的结果
         total_delay = 0
         for veh in leaved_vehicles:
             total_delay += self.vehicles[veh].AccumulatedWaitingTime
@@ -249,18 +260,40 @@ class Intersection():
             average_delay = total_delay/len(leaved_vehicles)
         else:
             average_delay = 0
+        # 吞吐量，是当前动作的结果
         throughput = len(leaved_vehicles)
+        # 车辆等待时间的增长情况是当前动作的结果
+        laststep_total = 0
+        for veh in laststep_vehicles:
+            laststep_total += self.vehicles[veh].AccumulatedWaitingTime
+        thisstep_total = 0
+        for veh in total_vehicles:
+            thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
+        wait_time_ascend = thisstep_total - laststep_total
+        
         self.last_step_vehicles = vehicles
-        return Indicators(throughput = throughput, average_delay = average_delay)
+        
+        return Indicators(total_vehicles = len(total_vehicles),
+                          wait_time_ascend = wait_time_ascend,
+                          throughput = throughput,
+                          average_delay = average_delay)
     #endregion
     
     
     #region reward
     def get_reward(self):
-        reward = 0
         indicator = self.get_all_info()
-        reward += -0.7*indicator.average_delay
-        reward += -0.3*indicator.throughput
+        reward = 0
+        if indicator.wait_time_ascend > 0:
+            if indicator.throughput == 0:
+                reward = -math.log(indicator.wait_time_ascend,7)
+            else:
+                # 通行比例大则奖励大
+                reward = - math.log(indicator.wait_time_ascend,7) * (1 - (indicator.throughput / indicator.total_vehicles))
+        else:
+            reward = 2
+        #reward += -0.7*indicator.average_delay
+        #reward += 0.3*indicator.throughput
         return reward, indicator
     #endregion
     

@@ -20,6 +20,8 @@ class Vehicle(BaseModel):
 class Indicators(BaseModel):
     throughput: int = 0
     average_delay: float = 0.0
+    wait_time_ascend: float = 0.0
+    total_vehicles: int = 0
 
 if __name__ == '__main__':
     # 测试 Vehicle 模型

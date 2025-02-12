@@ -92,6 +92,7 @@ class feature_specific_Model_actor(Model):
                 self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.output_layer = nn.Linear(self.merge_in,2)
+        self.apply(self._init_weights)
         
     def forward(self,obs):
         obs = self.preprocess_obs(obs)
@@ -131,6 +132,7 @@ class feature_specific_Model_actor(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
+        embedding = torch.tanh(embedding)
         action = torch.squeeze(embedding).cpu()
         return action
     
@@ -205,6 +207,7 @@ class feature_specific_Model_actor(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
+        embedding = torch.tanh(embedding)
         action = torch.squeeze(embedding).cpu()
         return action
 
@@ -284,6 +287,7 @@ class feature_specific_Model_critic(Model):
                 self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.output_layer = nn.Linear(self.merge_in,1)
+        self.apply(self._init_weights)
         
     def forward(self,obs):
         obs = self.preprocess_obs(obs)
@@ -324,6 +328,7 @@ class feature_specific_Model_critic(Model):
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
         embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
+        embedding = torch.tanh(embedding)*200
         return embedding
     
     
@@ -399,5 +404,6 @@ class feature_specific_Model_critic(Model):
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
         embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
+        embedding = torch.tanh(embedding)*200
         return embedding
     
