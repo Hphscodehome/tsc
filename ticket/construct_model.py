@@ -60,8 +60,8 @@ if __name__ == '__main__':
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-    train_loader = DataLoader(train_dataset, batch_size=500, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=200, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=train_size//3+1, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=val_size//2+1, shuffle=False)
     model = Model()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
