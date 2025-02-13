@@ -1,15 +1,13 @@
-import requests
-import re
 from bs4 import BeautifulSoup
-import logging
-from collections import defaultdict
+import logging,json,re,requests
 import numpy as np
-import json
 
 #Dict[index,Dict[attr,value]]
 #attr in [red,blue,6,5,4,3,2,1,sales]
-index_values = defaultdict(lambda : {})
+index_values = {}
+
 def get(url, headers):
+    
     global index_values
     response = requests.get(url, headers = headers)
     if response.status_code == 200:
@@ -44,23 +42,7 @@ def get(url, headers):
                     amount = cells[2].text.strip()
                     index_values[number][award_name[:3]] = int(count)
                     #logging.info(f"{award_name}: {count} 注，每注 {amount} 元")
-            '''
-            # 提取销量、奖池和截止时间
-            sales = soup.select_one('.article .gray2:nth-of-type(1)')
-            pool = soup.select_one('.article .yellow')
-            deadline = soup.select_one('.article .gray2:nth-of-type(2)')
-            if sales:
-                #logging.info(f"本期销量:{sales.text}")
-                sales_number = sales.text.replace(',', '').strip()
-                sales_number = re.search(r'\d+', sales_number).group()
-                index_values[number]['sales'] = int(sales_number)
-            if pool:
-                True
-                #logging.info(f"奖池滚存:{pool.text}")
-            if deadline:
-                True
-                #logging.info(f"兑奖截止时间:{deadline.text}")
-            '''
+            logging.info(f"{index_values[number]}")
             return True
         else:
             return False
@@ -69,26 +51,20 @@ def get(url, headers):
         return False
 
 def get_sales():
-    #global index_values
-    url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=24102&end=24108'#"http://datachart.500.com/ssq/history/newinc/history.php?start=00001&end=2024097"#'https://datachart.500.com/ssq/history/outball.shtml'
+    
+    global index_values
+    url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=09111&end=25150'#"http://datachart.500.com/ssq/history/newinc/history.php?start=00001&end=2024097"#'https://datachart.500.com/ssq/history/outball.shtml'
     response = requests.get(url)
     response = response.text
     soup = BeautifulSoup(response, 'html.parser')
     table = soup.find('table', id='tablelist')
-    header = [th.text for th in table.find_all('th')]
-    print("表头:", header)
-    data = []
-    # 遍历表格的每一行（除了表头行）
     for row in table.find_all('tr', class_='t_tr1'):  # 使用 class_ 过滤
-        row_data = []
-        for cell in row.find_all('td'):
-            # 清理单元格文本，移除多余空白
-            cleaned_text = cell.text.strip().replace('\xa0', '') # Remove non-breaking spaces
-            row_data.append(cleaned_text)
-        data.append(row_data)
-    print("数据:")
-    for row in data:
-        print(row)
+        cells = row.find_all('td')
+        issue = int('20' + cells[0].text.strip())
+        value = int(cells[14].text.replace(",", "").strip())
+        index_values[issue] = {}
+        index_values[issue]['sales'] = value
+        
 def process(results):
     _keys = list(results.keys())
     _keys = sorted(_keys,reverse=True)
@@ -117,23 +93,27 @@ def process(results):
                  大于1/16的期号是：{bigqihaos}
                  小于1/16的期号是：{smallqihaos}
                  """)
+    
 if __name__ == '__main__':
+
     logging.basicConfig(level=logging.INFO)
-    '''
-    for year in range(25,8,-1):
-        for index in range(160,0,-1):
-            url = f"https://m.78500.cn/kaijiang/ssq/2{str(year).zfill(3)+str(index).zfill(3)}.html"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
-            }
-            if get(url, headers):
-                True
-                #break
+    get_sales()
+    logging.info(f"{index_values}")
+    for key in index_values.keys():
+        url = f"https://m.78500.cn/kaijiang/ssq/{str(key)}.html"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        }
+        if get(url, headers):
+            True
+            #break
     logging.info(f"{index_values}")
     with open('dd_index_values.json', 'w') as f:
         json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
+        
     process(index_values)
-    
+    # 2009111
+    '''
     url = "https://m.78500.cn/kaijiang/ssq/2025017.html"
     #https://datachart.500.com/ssq/history/history.shtml
     
@@ -142,4 +122,4 @@ if __name__ == '__main__':
     }
     get(url, headers)
     '''
-    get_sales()
+    

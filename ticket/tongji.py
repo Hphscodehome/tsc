@@ -15,17 +15,22 @@ def open_file(file):
     qihaos = []
     tongjis_6 = []
     for key in _keys:
-        # 回收
-        huishou = 0
         # 售出
         shouchu = results[key]['sales']/2
+        # 回收
+        huishou = 0
         for index_key in results[key].keys():
             if index_key.endswith('等奖'):
                 huishou += results[key][index_key]
-        tongjis_6.append(results[key]['六等奖']/shouchu)
-        # 占比
-        tongjis.append(huishou/shouchu)
-        qihaos.append(key)
+        if huishou != 0:
+            # 占比
+            tongjis_6.append(results[key]['六等奖']/shouchu)
+            tongjis.append(huishou/shouchu)
+            qihaos.append(key)
+        else:
+            tongjis_6.append(0)
+            tongjis.append(0)
+            qihaos.append(key)
     logging.info(tongjis)
     logging.info(tongjis_6)
     tongjis_6 = np.array(tongjis_6)
