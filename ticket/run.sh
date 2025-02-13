@@ -1,5 +1,5 @@
 #!/bin/bash
-num_runs=9
+num_runs=13
 for i in $(seq 3 $num_runs); do
   echo "运行第 $i 次："
   /root/miniconda3/envs/sumo/bin/python3 construct_model.py --end $i >> train.log 2>&1 

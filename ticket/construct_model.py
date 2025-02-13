@@ -106,3 +106,13 @@ if __name__ == '__main__':
                 logging.info('Early stopping!')
                 break  # 提前结束训练循环
     logging.info(f"当前试验截断值为：{args.end},文件名为：best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}")
+    with open('record.txt', 'a', encoding='utf-8') as file:
+        file.write(f"当前试验截断值为：{args.end},文件名为：best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}\n")
+        #logging.info(f"{list(dataset.x[0][1:])+[int(dataset.y[0])]}")
+        #logging.info(f"{torch.from_numpy(np.array(list(dataset.x[0][1:])+[int(dataset.y[0])], dtype=np.int64)).to(torch.int).unsqueeze(0)}")
+        with torch.no_grad():
+            outputs = model(torch.tensor([14,3,8,5,10,10,5,7,10,10,13,4][-args.end:]).to(torch.int).unsqueeze(0))
+            #outputs = model(torch.from_numpy(np.array(list(dataset.x[0][1:])+[int(dataset.y[0])], dtype=np.int64)).to(torch.int).unsqueeze(0))
+        file.write(f"INput:{torch.from_numpy(np.array(list(dataset.x[0][1:])+[int(dataset.y[0])], dtype=np.int64)).to(torch.int).unsqueeze(0)}, \
+                   当前模型预测结果为：{outputs}, \
+                   估计值为：{torch.argmax(outputs,dim=1)+1}\n")
