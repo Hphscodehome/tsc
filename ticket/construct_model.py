@@ -1,0 +1,101 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, random_split, DataLoader
+import json
+import numpy as np
+
+class Model(nn.Module):
+    def __init__(self,output_dimension=16):
+        super(Model,self).__init__()
+        self.network = nn.Sequential(
+                    nn.Embedding(output_dimension, 4),
+                    nn.Linear(4, 5),
+                    nn.LeakyReLU(),
+                    nn.Linear(5, 7),
+                    nn.LeakyReLU(),
+                    nn.Linear(7, output_dimension),
+                    nn.Tanh()
+                )
+        self.apply(self._init_weights)
+        
+    def _init_weights(self, module, gain=1.0):
+        if isinstance(module, nn.Linear) or isinstance(module, nn.Embedding):
+            nn.init.orthogonal_(module.weight, gain=gain)
+            if hasattr(module, "bias") and module.bias is not None:
+                module.bias.data.zero_()
+                
+    def forward(self,x):
+        x = self.network(x)
+        x = torch.mean(x,dim=1)
+        return x
+
+class MyDataset(Dataset):
+    def __init__(self, x_file = '/data/hupenghui/Self/tsc/ticket/train_x.json',y_file = '/data/hupenghui/Self/tsc/ticket/train_y.json'):
+        with open(x_file, 'r', encoding='utf-8') as f:
+            self.x = json.load(f)
+        with open(y_file, 'r', encoding='utf-8') as f:
+            self.y = json.load(f)
+        self.x = np.array(self.x,dtype=int)
+        self.y = np.array(self.y,dtype=int)
+        self.x = self.x[:,-4:]
+        self.x -= 1
+        self.y -= 1
+        #print(len(self.x),len(self.x[0]),self.x[0],self.y[0])
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, index):
+        return self.x[index], self.y[index]
+    
+if __name__ == '__main__':
+    dataset = MyDataset()
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    train_loader = DataLoader(train_dataset, batch_size=500, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=200, shuffle=False)
+    model = Model()
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    num_epochs = 100000
+    
+    best_val_loss = float('inf')  # 初始化最佳验证集损失
+    patience = 5  # 设置早停的耐心值
+    counter = 0  # 计数器，记录连续多少个epoch验证集损失没有下降
+    
+    for epoch in range(num_epochs):
+        for i, (data, labels) in enumerate(train_loader):
+            data = data.clone().detach().to(torch.int)
+            labels = labels.clone().detach().to(torch.long) # unsqueeze(1) 增加一个维度，使其形状为 (batch_size, 1)
+            outputs = model(data)
+            loss = criterion(outputs, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if (i+1) % 3 == 0:
+                print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
+        # 验证循环
+        val_loss = 0.0
+        with torch.no_grad():  # 在验证阶段不需要计算梯度
+            for data, labels in val_loader:
+                data = data.to(torch.int)  # 验证集数据也需要转换类型
+                labels = labels.to(torch.long)
+                outputs = model(data)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+        avg_val_loss = val_loss / len(val_loader)
+        print('Epoch [{}/{}], Validation Loss: {:.4f}'.format(epoch + 1, num_epochs, avg_val_loss))
+        # 早停判断
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            counter = 0  # 重置计数器
+            # 保存模型
+            torch.save(model.state_dict(), 'best_model.pth') # 保存当前最好的模型
+            print("Model saved!")
+        else:
+            counter += 1
+            if counter >= patience:
+                print('Early stopping!')
+                break  # 提前结束训练循环
+        

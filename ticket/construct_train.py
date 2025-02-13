@@ -29,13 +29,14 @@ def read_list_from_file(filepath):
     return my_list
       
 if __name__ == '__main__':
-    file = 'dd_index_values.json'
+    file = '/data/hupenghui/Self/tsc/ticket/dd_index_values.json'
     with open(file, 'r', encoding='utf-8') as f:
         results = json.load(f)
-    file = 'tongji_index.txt'
+    file = '/data/hupenghui/Self/tsc/ticket/tongji_index.txt'
     index = read_list_from_file(file)
     lanqius = get_sales()
-    with open("lanqius.json", "w") as f:
+    lanqius.reverse()
+    with open("/data/hupenghui/Self/tsc/ticket/lanqius.json", "w") as f:
         json.dump(lanqius, f, indent=4)
     all_indexs = list(results.keys())
     all_indexs = sorted(all_indexs)
@@ -43,11 +44,16 @@ if __name__ == '__main__':
     train_data_y = []
     for ind in index:
         i = all_indexs.index(ind)
-        train_data_x.append(lanqius[i-100:i])
-        train_data_y.append(int(results[ind]['blue'].strip()))
-    with open("train_x.json", "w") as f:
+        if lanqius[i+100] == int(results[ind]['blue'].strip()):
+            train_data_x.append(lanqius[i:i+100])
+            train_data_y.append(int(results[ind]['blue'].strip()))
+        else:
+            print(i,ind)
+            train_data_x.append(lanqius[i:i+100])
+            train_data_y.append(lanqius[i+100])
+    with open("/data/hupenghui/Self/tsc/ticket/train_x.json", "w") as f:
         json.dump(train_data_x, f, indent=4)
-    with open("train_y.json", "w") as f:
+    with open("/data/hupenghui/Self/tsc/ticket/train_y.json", "w") as f:
         json.dump(train_data_y, f, indent=4)
     print('done')
     
