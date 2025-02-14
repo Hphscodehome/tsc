@@ -37,7 +37,7 @@ class Model(nn.Module):
         return out
 
 class MyDataset(Dataset):
-    def __init__(self, x_file = '/data/hupenghui/Self/tsc/ticket/train_x.json',y_file = '/data/hupenghui/Self/tsc/ticket/train_y.json',end =7):
+    def __init__(self, x_file = '/data/hupenghui/Self/tsc/ticket/data/train_x.json',y_file = '/data/hupenghui/Self/tsc/ticket/data/train_y.json',end =7):
         with open(x_file, 'r', encoding='utf-8') as f:
             self.x = json.load(f)
         with open(y_file, 'r', encoding='utf-8') as f:
