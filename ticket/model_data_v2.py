@@ -6,7 +6,7 @@ import numpy as np
 # 简单版本
 
 class Model(nn.Module):
-    def __init__(self, output_dimension=16, max_length=33):
+    def __init__(self, output_dimension=16, max_length=51):
         super(Model, self).__init__()
         self.max_length = max_length
         self.networks = nn.ModuleDict()

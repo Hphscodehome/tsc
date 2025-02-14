@@ -21,28 +21,15 @@ def get(url, headers):
             number = match.group(1)
             number = int(number)
             #logging.info(f"本期号:{number}")
-            red_numbers = []
-            blue_number = ""
-            for num in numbers:
-                if 'c-red' in num['class']:
-                    red_numbers.append(num.text)
-                else:  # 假设蓝色号码没有class为c-red的i元素
-                    blue_number = num.text
-            index_values[number]['red'] = red_numbers
-            index_values[number]['blue'] = blue_number
-            #logging.info(f"红球号码:{red_numbers}")
-            #logging.info(f"蓝球号码:{blue_number}")
-            # 提取中奖信息
             winners = soup.select('.winner-list tbody tr')
             for winner in winners:
                 cells = winner.find_all('td')
                 if len(cells) == 3:
                     award_name = cells[0].text.strip()
                     count = cells[1].text.strip()
-                    amount = cells[2].text.strip()
                     index_values[number][award_name[:3]] = int(count)
                     #logging.info(f"{award_name}: {count} 注，每注 {amount} 元")
-            logging.info(f"{index_values[number]}")
+            logging.info(f"{number},{index_values[number]}")
             return True
         else:
             return False
@@ -53,7 +40,7 @@ def get(url, headers):
 def get_sales():
     
     global index_values
-    url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=09111&end=25150'#"http://datachart.500.com/ssq/history/newinc/history.php?start=00001&end=2024097"#'https://datachart.500.com/ssq/history/outball.shtml'
+    url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=09111&end=99999'#"http://datachart.500.com/ssq/history/newinc/history.php?start=00001&end=2024097"#'https://datachart.500.com/ssq/history/outball.shtml'
     response = requests.get(url)
     response = response.text
     soup = BeautifulSoup(response, 'html.parser')
@@ -64,6 +51,8 @@ def get_sales():
         value = int(cells[14].text.replace(",", "").strip())
         index_values[issue] = {}
         index_values[issue]['sales'] = value
+        index_values[issue]['red'] = [cells[i].text.strip() for i in range(1,7)]
+        index_values[issue]['blue'] = cells[7].text.strip()
         
 def process(results):
     _keys = list(results.keys())
@@ -71,10 +60,10 @@ def process(results):
     tongjis = []
     qihaos = []
     for key in _keys:
-        # 回收
-        huishou = 0
         # 售出
         shouchu = results[key]['sales']/2
+        # 回收
+        huishou = 0
         for index_key in results[key].keys():
             if index_key.endswith('等奖'):
                 huishou += results[key][index_key]
@@ -104,11 +93,9 @@ if __name__ == '__main__':
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
         }
-        if get(url, headers):
-            True
-            #break
+        get(url, headers)
     logging.info(f"{index_values}")
-    with open('dd_index_values.json', 'w') as f:
+    with open('/data/hupenghui/Self/tsc/ticket/data/issue_values.json', 'w', encoding='utf-8') as f:
         json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
         
     process(index_values)

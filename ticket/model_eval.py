@@ -28,5 +28,5 @@ if __name__ == '__main__':
         outputs = model(test)
         #outputs = model(torch.from_numpy(np.array(list(dataset.x[0][1:])+[int(dataset.y[0])], dtype=np.int64)).to(torch.int).unsqueeze(0))
     distribution = Categorical(logits=outputs)
-    samples = distribution.sample()
-    logging.info(f"INput:{test.flatten().tolist()},\n当前模型预测结果为：{outputs.flatten().tolist()},\nlogits最大的值为：{torch.argmax(outputs,dim=1).item()+1}\n按照logits采样得到的结果是：{samples.item()+1}")
+    samples = distribution.sample((10,))
+    logging.info(f"{distribution.probs},\nINput:{test.flatten().tolist()},\n当前模型预测结果为：{outputs.flatten().tolist()},\nlogits最大的值为：{torch.argmax(outputs,dim=1).item()+1}\n按照logits采样得到的结果是：{samples.flatten()+1}")
