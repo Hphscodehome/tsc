@@ -7,59 +7,7 @@ import numpy as np
 import logging
 import argparse
 # 简单版本
-from model_data_v1 import Model,MyDataset
-'''
-class Model(nn.Module):
-    def __init__(self, output_dimension=16, max_length=100):
-        super(Model,self).__init__()
-        self.network = nn.Sequential(
-                    nn.Embedding(output_dimension, 4),
-                    nn.Linear(4, 5),
-                    nn.LeakyReLU(),
-                    nn.Linear(5, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, output_dimension),
-                    nn.Tanh()
-                )
-        self.apply(self._init_weights)
-        self.position_weights = nn.Parameter(torch.randn(max_length))
-        self.position_weights_tanh = nn.Tanh()
-        self.position_weights_softmax = nn.Softmax(dim=1)
-        
-    def _init_weights(self, module, gain=1.0):
-        if isinstance(module, nn.Linear) or isinstance(module, nn.Embedding):
-            nn.init.orthogonal_(module.weight, gain=gain)
-            if hasattr(module, "bias") and module.bias is not None:
-                module.bias.data.zero_()
-                
-    def forward(self,x):
-        batch_size, seq_length = x.shape
-        pos_weights = self.position_weights[:seq_length].unsqueeze(0).expand(batch_size, -1)
-        x_emb = self.network[0](x)  # 获取嵌入层输出
-        x_feat = self.network[1:](x_emb)  # 应用剩余的网络层
-        weighted_x = x_feat * self.position_weights_softmax(self.position_weights_tanh(pos_weights)).unsqueeze(-1)  # (batch, length, output_dimension)
-        x = torch.sum(weighted_x, dim=1)
-        return x
-
-class MyDataset(Dataset):
-    def __init__(self, x_file = '/data/hupenghui/Self/tsc/ticket/train_x.json',y_file = '/data/hupenghui/Self/tsc/ticket/train_y.json',end =7):
-        with open(x_file, 'r', encoding='utf-8') as f:
-            self.x = json.load(f)
-        with open(y_file, 'r', encoding='utf-8') as f:
-            self.y = json.load(f)
-        self.x = np.array(self.x,dtype=np.int64)
-        self.y = np.array(self.y,dtype=np.int64)
-        self.x = self.x[:,-end:]
-        self.x -= 1
-        self.y -= 1
-        #print(len(self.x),len(self.x[0]),self.x[0],self.y[0])
-        
-    def __len__(self):
-        return len(self.x)
-
-    def __getitem__(self, index):
-        return self.x[index], self.y[index]
-'''
+from model_data_v2 import Model,MyDataset
 
 if __name__ == '__main__':
     
@@ -108,16 +56,16 @@ if __name__ == '__main__':
             best_val_loss = avg_val_loss
             counter = 0  # 重置计数器
             # 保存模型
-            torch.save(model.state_dict(), f'/data/hupenghui/Self/tsc/ticket/model/best_model_{args.end}.pth') # 保存当前最好的模型
+            torch.save(model.state_dict(), f'/data/hupenghui/Self/tsc/ticket/model22/best_model_{args.end}.pth') # 保存当前最好的模型
             logging.info("Model saved!")
         else:
             counter += 1
             if counter >= patience:
                 logging.info('Early stopping!')
                 break  # 提前结束训练循环
-    logging.info(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model/best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}")
+    logging.info(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model22/best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}")
     with open('/data/hupenghui/Self/tsc/ticket/record.txt', 'a', encoding='utf-8') as file:
-        file.write(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model/best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}\n")
+        file.write(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model22/best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}\n")
         #logging.info(f"{list(dataset.x[0][1:])+[int(dataset.y[0])]}")
         #logging.info(f"{torch.from_numpy(np.array(list(dataset.x[0][1:])+[int(dataset.y[0])], dtype=np.int64)).to(torch.int).unsqueeze(0)}")
         #test = torch.tensor([1,3,15,10,14,3,8,5,10,10,5,7,10,10,13,4,14][-args.end:]).to(torch.int).unsqueeze(0)
