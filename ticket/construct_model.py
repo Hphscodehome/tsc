@@ -25,7 +25,7 @@ if __name__ == '__main__':
     logging.info(f"train groups：{len(train_loader)},eval groups：{len(val_loader)}")
     model = Model()
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     num_epochs = 100000
     best_val_loss = float('inf')  # 初始化最佳验证集损失
     patience = 20  # 设置早停的耐心值
