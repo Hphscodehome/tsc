@@ -15,8 +15,10 @@ if __name__ == '__main__':
     logging.info(f"当前试验截断值为：{args.end}")
     
     dataset = MyDataset(end = args.end)
-    train_size = int(0.81 * len(dataset))
-    val_size = len(dataset) - train_size
+    #train_size = int(0.81 * len(dataset))
+    #val_size = len(dataset) - train_size
+    val_size = 100
+    train_size = len(dataset) - val_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     train_loader = DataLoader(train_dataset, batch_size=train_size//3+1, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=val_size, shuffle=False)
