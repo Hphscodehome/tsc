@@ -19,6 +19,7 @@ if __name__ == '__main__':
     #val_size = len(dataset) - train_size
     val_size = 100
     train_size = len(dataset) - val_size
+    logging.info(f"train size:{train_size},eval size:{val_size}")
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     train_loader = DataLoader(train_dataset, batch_size=train_size//3+1, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=val_size, shuffle=False)
