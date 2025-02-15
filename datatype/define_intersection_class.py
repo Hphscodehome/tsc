@@ -32,6 +32,7 @@ class Intersection():
         self.max_vehicle_num = 40
         self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
+        self.last_step_waittime = 0.0
         self.all_obs_fn = {
             "lane_average_speed": self.get_lane_average_speed,
             "lane_vehicle_numbers": self.get_lane_vehicle_numbers,
@@ -263,16 +264,13 @@ class Intersection():
         # 吞吐量，是当前动作的结果
         throughput = len(leaved_vehicles)
         # 车辆等待时间的增长情况是当前动作的结果
-        laststep_total = 0
-        for veh in laststep_vehicles:
-            laststep_total += self.vehicles[veh].AccumulatedWaitingTime
         thisstep_total = 0
         for veh in total_vehicles:
             thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
-        wait_time_ascend = thisstep_total - laststep_total
+        wait_time_ascend = thisstep_total - self.last_step_waittime
         
         self.last_step_vehicles = vehicles
-        
+        self.last_step_waittime = thisstep_total
         return Indicators(total_vehicles = len(total_vehicles),
                           wait_time_ascend = wait_time_ascend,
                           throughput = throughput,

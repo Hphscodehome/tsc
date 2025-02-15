@@ -37,6 +37,7 @@ class World(gym.Env):
         self.inters = [Intersection(self.eng, intersection_id, self.intersection_2_position[intersection_id], self.intersection_2_updownstream, self.lane_2_shape, self.lane_2_updownstream) for intersection_id in self.intersection_2_updownstream.keys()]
         self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
+        self.last_step_waittime = 0.0
         self.action_interval = 10
         self.reset()
     
@@ -52,7 +53,7 @@ class World(gym.Env):
         self.inters = [Intersection(self.eng, intersection_id, self.intersection_2_position[intersection_id], self.intersection_2_updownstream, self.lane_2_shape, self.lane_2_updownstream) for intersection_id in self.intersection_2_updownstream.keys()]
         self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
-        
+        self.last_step_waittime = 0.0
         self.n_agent = len(self.inters)
         state = self._get_observations()
         
@@ -106,7 +107,10 @@ class World(gym.Env):
         # 上个时间段离开路网的车辆数量 辆数
         # 上个时间段离开路网的车辆通过路网的平均等待时间 秒每辆
         vehicles = self.eng.vehicle.getIDList()
+        total_vehicles = list(set(vehicles) | set(self.last_step_vehicles))
+        getin_vehicles = list(set(vehicles) - set(self.last_step_vehicles))
         leaved_vehicles = list(set(self.last_step_vehicles)-set(vehicles))
+        # 总延迟，并非当前动作的结果，是累积动作的结果
         total_delay = 0
         for veh in leaved_vehicles:
             total_delay += self.vehicles[veh].AccumulatedWaitingTime
@@ -114,9 +118,19 @@ class World(gym.Env):
             average_delay = total_delay/len(leaved_vehicles)
         else:
             average_delay = 0.0
+        # 吞吐量，是当前动作的结果
         throughput = len(leaved_vehicles)
+        # 车辆等待时间的增长情况是当前动作的结果
+        thisstep_total = 0
+        for veh in total_vehicles:
+            thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
+        wait_time_ascend = thisstep_total - self.last_step_waittime
         self.last_step_vehicles = vehicles
-        return Indicators(throughput = throughput, average_delay = average_delay)
+        self.last_step_waittime = thisstep_total
+        return Indicators(total_vehicles = len(total_vehicles),
+                          wait_time_ascend = wait_time_ascend,
+                          throughput = throughput,
+                          average_delay = average_delay)
     #endregion
     
     
