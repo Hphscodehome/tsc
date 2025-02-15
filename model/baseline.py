@@ -16,7 +16,7 @@ class Model(nn.Module):
         :param device: defaults to 'cpu'
         :param log_dir: defaults to './log/'
         """
-        super().__init__()
+        super(Model,self).__init__()
         logging.info(f"{kwargs}")
         model_type, device, log_dir = kwargs['model_type'], kwargs['device'], kwargs['log_dir'],
         assert model_type in [None, "actor", "critic"]
@@ -37,17 +37,6 @@ class Model(nn.Module):
     def preprocess_obs(self, obs):
         raise NotImplementedError
 
-    def get_out(self, out):
-        """post process out by model type, actor / critic / None
-        :param out: model output
-        :return: 
-        """
-        if self.model_type == "actor":
-            out = F.softmax(out, dim=-1)
-        elif self.model_type == "critic":
-            out = torch.mean(out, dim=-1)
-        return out
-
 class MLPModel(Model):
     def __init__(self, **kwargs):
         """use simple mlp layer to learn policy and value
@@ -56,7 +45,7 @@ class MLPModel(Model):
         :param model_type: str, actor, critic, None
         :param device: str
         """
-        super().__init__(**kwargs)
+        super(MLPModel,self).__init__(**kwargs)
         self.input_dim = kwargs['input_dim']
         self.output_dim = kwargs['output_dim']
         self.model = nn.Sequential(
