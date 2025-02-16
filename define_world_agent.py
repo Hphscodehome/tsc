@@ -19,11 +19,12 @@ from utils.constants import obs_fn
 class World_agent():
     def __init__(self,intersections):
         self.actors = {}
+        self.target_actors = {}
         self.critics = {}
+        self.target_critics = {}
         self.actors_optimizer = {}
         self.critics_optimizer = {}
         self.actors_prob = {}
-        self.target_critics = {}
         for inter in intersections:
             kwargs = {
                 'use_func': obs_fn,
@@ -32,6 +33,9 @@ class World_agent():
                 'log_dir': './logs'
             }
             self.actors[inter.id] = Registry.mapping['actor']['feature_specific'](**kwargs)
+            self.target_actors[inter.id] = Registry.mapping['actor']['feature_specific'](**kwargs)
+            self.target_actors[inter.id].load_state_dict(self.actors[inter.id].state_dict())
+            
             kwargs = {
                 'use_func': obs_fn,
                 'model_type': 'critic',
@@ -41,6 +45,7 @@ class World_agent():
             self.critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
+            
             self.actors_optimizer[inter.id] = optim.SGD(self.actors[inter.id].parameters(), lr=0.01)
             self.critics_optimizer[inter.id] = optim.SGD(self.critics[inter.id].parameters(), lr=0.01)
             self.actors_prob[inter.id] = 0.8
