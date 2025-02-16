@@ -51,6 +51,7 @@ class Game():
         await self.world_agent.optimize(self.recoder)
         self.recoder = defaultdict(lambda: defaultdict(lambda: deque(maxlen=self.max_length)))
         self.infos = deque(maxlen=self.max_length)
+        return True
         
 async def main():
     logging.basicConfig(level=logging.INFO)

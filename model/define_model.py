@@ -57,28 +57,6 @@ class feature_specific_Model_actor(Model):
                 # (batch * lanes) * length * 2
                 # length * (batch * lanes) * 2
                 # 添加qkv投影
-                '''
-                self.networks[key].append((nn.Sequential(
-                    nn.Linear(self.vehicle_in, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, 11),
-                    nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
-                ),nn.Sequential(
-                    nn.Linear(self.vehicle_in, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, 11),
-                    nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
-                ),nn.Sequential(
-                    nn.Linear(self.vehicle_in, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, 11),
-                    nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
-                )))
-                self.networks[key].append(nn.MultiheadAttention(self.vehicle_out, self.vehicle_head))
-                '''
                 qkv = nn.ModuleList([nn.Sequential(
                     nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
@@ -132,7 +110,7 @@ class feature_specific_Model_actor(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
-        embedding = torch.tanh(embedding)
+        embedding = 5*torch.tanh(embedding)
         action = torch.squeeze(embedding).cpu()
         return action
     
@@ -207,7 +185,7 @@ class feature_specific_Model_actor(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
-        embedding = torch.tanh(embedding)
+        embedding = 5*torch.tanh(embedding)
         action = torch.squeeze(embedding).cpu()
         return action
 
@@ -252,28 +230,6 @@ class feature_specific_Model_critic(Model):
                 # (batch * lanes) * length * 2
                 # length * (batch * lanes) * 2
                 # 添加qkv投影
-                '''
-                self.networks[key].append((nn.Sequential(
-                    nn.Linear(self.vehicle_in, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, 11),
-                    nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
-                ),nn.Sequential(
-                    nn.Linear(self.vehicle_in, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, 11),
-                    nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
-                ),nn.Sequential(
-                    nn.Linear(self.vehicle_in, 7),
-                    nn.LeakyReLU(),
-                    nn.Linear(7, 11),
-                    nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
-                )))
-                self.networks[key].append(nn.MultiheadAttention(self.vehicle_out, self.vehicle_head))
-                '''
                 qkv = nn.ModuleList([nn.Sequential(
                     nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
@@ -327,8 +283,8 @@ class feature_specific_Model_critic(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
-        embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
         embedding = torch.tanh(embedding)*200
+        embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
         return embedding
     
     
@@ -403,7 +359,7 @@ class feature_specific_Model_critic(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         embedding = self.output_layer(embedding)
-        embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
         embedding = torch.tanh(embedding)*200
+        embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
         return embedding
     

@@ -122,11 +122,6 @@ class World_agent():
                         expected_l1 = F.softmax(expected_action[..., 0], dim=1)
                         kl_div = torch.sum(actions_l1 * torch.log(actions_l1 + 1e-8) - actions_l1 * torch.log(expected_l1 + 1e-8),dim=1)
                         
-                        #dist1 = Categorical(probs=actions_l1)
-                        #dist2 = Categorical(probs=expected_l1)
-                        #kl_div = kl_divergence(dist1, dist2)  # 对样本维度求和
-                        #pdb.set_trace()
-                        
                         actions_l2 = F.sigmoid(actions[..., 1])
                         expected_l2 = F.sigmoid(expected_action[..., 1])
                         # 计算距离
