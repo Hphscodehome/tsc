@@ -2,7 +2,6 @@
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.distributions import kl_divergence, Categorical
 from collections import defaultdict
 import logging
 import asyncio
@@ -24,6 +23,7 @@ class World_agent():
         self.actors_optimizer = {}
         self.critics_optimizer = {}
         self.actors_prob = {}
+        self.target_critics = {}
         for inter in intersections:
             kwargs = {
                 'use_func': obs_fn,
@@ -39,8 +39,10 @@ class World_agent():
                 'log_dir': './logs'
             }
             self.critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
-            self.actors_optimizer[inter.id] = optim.SGD(self.actors[inter.id].parameters(), lr=0.001)
-            self.critics_optimizer[inter.id] = optim.SGD(self.critics[inter.id].parameters(), lr=0.001)
+            self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
+            self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
+            self.actors_optimizer[inter.id] = optim.SGD(self.actors[inter.id].parameters(), lr=0.01)
+            self.critics_optimizer[inter.id] = optim.SGD(self.critics[inter.id].parameters(), lr=0.01)
             self.actors_prob[inter.id] = 0.8
             
     def step(self,obs):
@@ -70,12 +72,9 @@ class World_agent():
         return True
         
     async def optimize_actor(self, inter_id, records):
-        """records:dict
-        'b_state':[st1,st2,st3]
-        'reward':
-        'action':
-        'a_state':
-        'done':
+        """
+        使用PPO优化actor模型
+        records: dict containing 'b_state', 'reward', 'action', 'a_state', 'done', 'old_log_prob'
         """
         #计算该状态下对应动作出现的概率。
         #计算该状态下对应动作的优势。
@@ -85,8 +84,12 @@ class World_agent():
         critic = self.critics[inter_id]
         actor_optimizer = self.actors_optimizer[inter_id]
         flag = True# 自定义的
-        num_epochs = 3
-        batch_size = 40
+        num_epochs = 4
+        batch_size = 100
+        clip_param = 0.2  # PPO剪切参数
+        gamma = 0.99      # 折扣因子
+        lam = 0.95        # GAE参数
+        max_grad_norm = 0.5  # 梯度裁剪
         if flag:
             for epoch in range(num_epochs):
                 permutation = torch.randperm(len(records['b_state']))
@@ -124,74 +127,77 @@ class World_agent():
                         
                         actions_l2 = F.sigmoid(actions[..., 1])
                         expected_l2 = F.sigmoid(expected_action[..., 1])
-                        # 计算距离
                         distance = (actions_l2 * torch.log(actions_l2 + 1e-8) - actions_l2 * torch.log(expected_l2 + 1e-8) + \
                                     (1 - actions_l2) * torch.log(1 - actions_l2 + 1e-8) - (1 - actions_l2) * torch.log(1 - expected_l2 + 1e-8)) * expected_l1
-                        #distance = (-F.binary_cross_entropy(actions_l2, actions_l2, reduction='none') + F.binary_cross_entropy( expected_l2, actions_l2, reduction='none')) * expected_l1
-                        # 现在我们需要对样本和批量进行求和
                         distance = distance.sum(dim=1) + kl_div
-                        # 如果你需要一个标量值，可以继续对批量进行求和
-                        # distance = distance.sum()
                         action_prob = F.sigmoid(distance)
                         logging.info(f"action_prob : {action_prob.flatten()}")
                         with torch.no_grad():
-                            value = critic.forward_batch(np.array(records['b_state'], dtype=object)[indices])
+                            values = critic.forward_batch(np.array(records['b_state'], dtype=object)[indices]).squeeze()
+                            next_values = critic.forward_batch(np.array(records['a_state'], dtype=object)[indices]).squeeze()
+                            deltas = torch.from_numpy(np.array(records['reward'])[indices]).float().reshape(next_values.shape) + gamma * next_values - values
+                            advantages = torch.zeros_like(deltas)
+                            advantages[-1] = deltas[-1]
+                            for t in reversed(range(len(deltas) - 1)):
+                                advantages[t] = deltas[t] + gamma * lam * advantages[t + 1]
+                            returns = advantages + values
+                            value = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+                            #value = critic.forward_batch(np.array(records['b_state'], dtype=object)[indices])
                         logging.info(f"value : {value.flatten()}")
                         loss = sum(torch.log(action_prob+1e-8)*value.flatten())
                         logging.info(f"{loss},actor,{[key for key in actor.output_layer.parameters()]}")
                         actor_optimizer.zero_grad()
                         loss.backward()
-                        for name, param in actor.named_parameters():
-                            if param.grad is not None:
-                                if torch.isnan(param.grad).any():
-                                    logging.info(f"Parameter '{name}' has NaN gradients")
+                        torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
                         actor_optimizer.step()
                         logging.info(f"{loss},actor,{[key for key in actor.output_layer.parameters()]}")
         #pdb.set_trace()
         return True
                     
     async def optimize_critic(self, inter_id, records):
-        """records:dict
-        'b_state':[st1,st2,st3]
-        'reward':
-        'action':
-        'a_state':
-        'done':
+        """
+        使用改进的DQN训练Q网络
+        records: dict containing 'b_state', 'reward', 'action', 'a_state', 'done'
         """
         #计算该状态下对应状态的状态价值
         #计算下个状态的状态价值
         #根据reward调整状态价值函数
         #pdb.set_trace()
-        critic = self.critics[inter_id]
+        critic = self.critics[inter_id]  # 在线网络
+        target_critic = self.target_critics[inter_id]  # 目标网络
         critic_optimizer = self.critics_optimizer[inter_id]
         flag = True # 自定义的
-        num_epochs = 4
         batch_size = 100
+        gamma = 0.99  # 折扣因子
+        num_epochs = 5
+        clip_grad_norm = 1.0  # 梯度裁剪
         if flag:
             for epoch in range(num_epochs):
                 #pdb.set_trace()
                 permutation = torch.randperm(len(records['b_state']))
                 for i in range(0,len(records['b_state']), batch_size):
-                    logging.info(f"i:{i}")
+                    #logging.info(f"i:{i}")
                     indices = permutation[i:i+batch_size]
                     temp_records = np.array(records['b_state'], dtype=object)[indices]
                     #pdb.set_trace()
                     values = critic.forward_batch(temp_records)
-                    logging.info(f"{values.flatten()}")
+                    #logging.info(f"{values.flatten()}")
                     with torch.no_grad():
                         temp_records = np.array(records['a_state'], dtype=object)[indices]
-                        expected_values = critic.forward_batch(temp_records)
+                        expected_values = target_critic.forward_batch(temp_records)
                     #pdb.set_trace()
-                    expected_values = expected_values + torch.from_numpy(np.array(records['reward'])[indices]).float().reshape(expected_values.shape)
-                    expected_values[expected_values>199] = 199
-                    expected_values[expected_values<-199] = -199
-                    logging.info(f"{expected_values.flatten()}")
+                    expected_values = expected_values + gamma * torch.from_numpy(np.array(records['reward'])[indices]).float().reshape(expected_values.shape)
+                    expected_values = torch.clamp(expected_values, -199, 199)
+                    #logging.info(f"{expected_values.flatten()}")
                     loss = sum((expected_values-values)**2)/batch_size
-                    logging.info(f"{loss},critic,{[key for key in critic.output_layer.parameters()]}")
+                    logging.info(f"{loss.item():.4f},critic,{[key for key in critic.output_layer.parameters()]}")
                     critic_optimizer.zero_grad()
                     loss.backward()
+                    torch.nn.utils.clip_grad_norm_(critic.parameters(), clip_grad_norm)
                     critic_optimizer.step()
-                    logging.info(f"{loss},critic,{[key for key in critic.output_layer.parameters()]}")
+                    logging.info(f"{loss.item():.4f},critic,{[key for key in critic.output_layer.parameters()]}")
+            target_critic.load_state_dict(critic.state_dict())
+            logging.info("Target network updated")
             
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
