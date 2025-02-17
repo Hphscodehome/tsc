@@ -8,10 +8,11 @@ all_keys = ['一等奖','二等奖','三等奖','四等奖','五等奖','六等�
 
 def from_datachart500():
     global index_values
-    #with open('./data/issue_values.json', 'r', encoding='utf-8') as f:
-    #    index_values = json.load(f)#无序
+    with open('./data/issue_values.json', 'r', encoding='utf-8') as f:
+        index_values = json.load(f)# 全部
     url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=00000&end=99999'
-    response = requests.get(url)
+    response = requests.get(url,
+                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'})
     response.encoding = 'utf-8'
     response = response.text
     soup = BeautifulSoup(response, 'html.parser')
@@ -49,7 +50,7 @@ def fetch_lottery_results(issue, reb_balls, blue_balls, value, all_keys, yidengr
         ]
         fetchers = [from_78500, from_vipc, from_zx500]
         for url, fetch in zip(urls, fetchers):
-            result = fetch(url)
+            result = fetch(url=url)
             if result is not None and set(all_keys) <= set(result['prize'].keys()):
                 if any([
                     yidengrenshu == result['prize']['一等奖']['winners'],
@@ -64,7 +65,7 @@ def fetch_lottery_results(issue, reb_balls, blue_balls, value, all_keys, yidengr
                         **{key: result['prize'][key]['winners'] for key in all_keys}
                     }
                     return True# Found the data, exit function
-
+                
             logging.info(f"{url}, not found, {issue}")
         # If we've gone through all sources without finding valid data
         logging.info(f"没有记录: {issue}")
@@ -77,7 +78,7 @@ def fetch_lottery_results(issue, reb_balls, blue_balls, value, all_keys, yidengr
         ]
         fetchers = [from_78500, from_zx500]
         for url, fetch in zip(urls, fetchers):
-            result = fetch(url)
+            result = fetch(url=url)
             if result is not None and set(all_keys) <= set(result['prize'].keys()):
                 if any([
                     yidengrenshu == result['prize']['一等奖']['winners'],
@@ -104,7 +105,7 @@ def fetch_lottery_results(issue, reb_balls, blue_balls, value, all_keys, yidengr
         ]
         fetchers = [from_zx500]
         for url, fetch in zip(urls, fetchers):
-            result = fetch(url)
+            result = fetch(url=url)
             if result is not None and set(all_keys) <= set(result['prize'].keys()):
                 if any([
                     yidengrenshu == result['prize']['一等奖']['winners'],
@@ -128,7 +129,7 @@ def fetch_lottery_results(issue, reb_balls, blue_balls, value, all_keys, yidengr
 
 # https://m.78500.cn/kaijiang/ssq/2025017.html
 @sleep_and_retry
-@limits(calls=8, period=1)  # 1 call per 1 second
+@limits(calls=8, period=1)  # 8 call per 1 second
 def from_78500(url = "https://m.78500.cn/kaijiang/ssq/2025015.html",
                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
     logging.info(f"url: {url}")
@@ -169,7 +170,7 @@ def from_78500(url = "https://m.78500.cn/kaijiang/ssq/2025015.html",
 
 # "https://zx.500.com/ssq/2025016/"
 @sleep_and_retry
-@limits(calls=4, period=1)  # 1 call per 1 second
+@limits(calls=4, period=1)  # 4 call per 1 second
 def from_zx500(url = "https://zx.500.com/ssq/2015053/",
                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
     logging.info(f"url: {url}")
@@ -205,7 +206,7 @@ def from_zx500(url = "https://zx.500.com/ssq/2015053/",
 # https://www.vipc.cn/result/ssq/2025016
 # 2013年之后的才有
 @sleep_and_retry
-@limits(calls=5, period=1)  # 1 call per 1 second
+@limits(calls=5, period=1)  # 5 call per 1 second
 def from_vipc(url = 'https://www.vipc.cn/result/ssq/2003001' , 
               headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
     logging.info(f"url: {url}")
@@ -244,9 +245,9 @@ def from_vipc(url = 'https://www.vipc.cn/result/ssq/2003001' ,
     
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    #from_datachart500()
-    #with open('./data/issue_values.json', 'w', encoding='utf-8') as f:
-    #    json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
+    from_datachart500()
+    with open('./data/issue_values.json', 'w', encoding='utf-8') as f:
+        json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
     '''
     issue = '2009001'
     urls = [
@@ -257,7 +258,7 @@ if __name__ == "__main__":
     fetchers = [from_78500, from_vipc, from_zx500]
     for url, fetch in zip(urls, fetchers):
         print(fetch(url))
-    '''
+    
     url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=00000&end=09110'
     response = requests.get(url)
     response.encoding = 'utf-8'
@@ -270,4 +271,5 @@ if __name__ == "__main__":
         logging.info(f"{time.time()}")
         logging.info(from_zx500(f"https://zx.500.com/ssq/{issue}/"))
         logging.info(f"{time.time()}")
+    '''
     
