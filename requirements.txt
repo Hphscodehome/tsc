@@ -7,3 +7,4 @@ sumolib
 gymnasium
 torch
 tensorboard
+ratelimit
