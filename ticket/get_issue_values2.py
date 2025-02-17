@@ -58,6 +58,7 @@ def from_datachart500():
 
 # "https://zx.500.com/ssq/2025016/"       
 def from_zx500(url = "https://zx.500.com/ssq/2025016/"):
+    logging.info(f"url: {url}")
     try:
         result = {}
         response = requests.get(url)
@@ -90,6 +91,7 @@ def from_zx500(url = "https://zx.500.com/ssq/2025016/"):
 # https://www.vipc.cn/result/ssq/2025016
 # 2013年之后的才有
 def from_vipc(url = 'https://www.vipc.cn/result/ssq/2014001' , headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
+    logging.info(f"url: {url}")
     result = {}
     response = requests.get(url, headers = headers)
     soup = BeautifulSoup(response.text, 'html.parser')
