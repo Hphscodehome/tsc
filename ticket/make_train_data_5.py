@@ -30,8 +30,7 @@ if __name__ == '__main__':
     all_indexs = list(results.keys())
     all_indexs = sorted(all_indexs)# 从小到大
     all_indexs = all_indexs[100:] # 部分
-    
-    file = './data/artificial_issues.txt'
+    file = './data/artificial_issues_2.txt'
     index = read_list_from_file(file)#无序 部分
 
     lanqius = get_sales()#从大到小
@@ -50,9 +49,9 @@ if __name__ == '__main__':
             print(i,ind)
             train_data_x.append(lanqius[i:i+100])
             train_data_y.append(lanqius[i+100])
-    with open("./data/train_x.json", "w", encoding='utf-8') as f:
+    with open("./data/train_x_5.json", "w", encoding='utf-8') as f:
         json.dump(train_data_x, f, indent=4)
-    with open("./data/train_y.json", "w", encoding='utf-8') as f:
+    with open("./data/train_y_5.json", "w", encoding='utf-8') as f:
         json.dump(train_data_y, f, indent=4)
     print('done')
     
