@@ -25,9 +25,9 @@ jobs:
 
     - name: Run script
       run: cd ticket && python get_issue_values2.py
-      
+
     - name: Upload results
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ticket-data
         path: ticket/data/issue_values.json
