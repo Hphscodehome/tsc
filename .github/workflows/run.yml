@@ -1,9 +1,7 @@
 name: Run Ticket Script
 
 on:
-  push:
-    branches:
-      - master  # 或者你的主分支名称，可能是master
+  workflow_dispatch:
 
 jobs:
   run-script:
