@@ -196,7 +196,7 @@ def from_vipc(url = 'https://www.vipc.cn/result/ssq/2003001' , headers = {'User-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     from_datachart500()
-    with open('/data/hupenghui/Self/tsc/ticket/data/issue_values.json', 'w', encoding='utf-8') as f:
+    with open('./data/issue_values.json', 'w', encoding='utf-8') as f:
         json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
     #print(from_vipc())
     #print(from_zx500())

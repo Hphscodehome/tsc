@@ -24,11 +24,11 @@ jobs:
         pip install requests beautifulsoup4
 
     - name: Run script
-      run: python get_issue_values2.py
+      run: cd ticket && python get_issue_values2.py
       env:
 
     - name: Upload results
       uses: actions/upload-artifact@v2
       with:
         name: ticket-data
-        path: ./issue_values.json
+        path: ticket/data/issue_values.json
