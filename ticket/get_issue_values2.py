@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import logging,json,re
 
 index_values = {}
+
 def from_datachart500():
     global index_values
     url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=00000&end=99999'
@@ -25,23 +26,27 @@ def from_datachart500():
         if len(reb_balls) != 6 or len(blue_balls) != 1:
             logging.info(f"Error: {issue}")
         result = from_zx500(url = f"https://zx.500.com/ssq/{str(issue)}/")
-        if result != None:
-            if (set(reb_balls) == set(result['red'])) and \
-                (set(blue_balls) == set(result['blue'])) and \
-                (left == result['left']) and \
-                (yidengrenshu == result['prize']['一等奖']['winners']) and \
-                (yidengjiang == result['prize']['一等奖']['prize_amount']) and \
-                (erdengrenshu == result['prize']['二等奖']['winners']) and \
-                (erdengjiang == result['prize']['二等奖']['prize_amount']):
-                index_values[issue] = {}
-                index_values[issue]['red'] = reb_balls
-                index_values[issue]['blue'] = blue_balls[0]
-                index_values[issue]['sales'] = value
-                for key in result['prize'].keys():
-                    index_values[issue][key] = result['prize'][key]['winners']
+        
+        if (result != None) and \
+            (set(reb_balls) == set(result['red'])) and \
+            (set(blue_balls) == set(result['blue'])) and \
+            (left == result['left']) and \
+            (yidengrenshu == result['prize']['一等奖']['winners']) and \
+            (yidengjiang == result['prize']['一等奖']['prize_amount']) and \
+            (erdengrenshu == result['prize']['二等奖']['winners']) and \
+            (erdengjiang == result['prize']['二等奖']['prize_amount']):
+            set(list(result['prize'].keys())) == set(['一等奖','二等奖','三等奖','四等奖','五等奖','六等奖'])
+            index_values[issue] = {}
+            index_values[issue]['red'] = reb_balls
+            index_values[issue]['blue'] = blue_balls[0]
+            index_values[issue]['sales'] = value
+            for key in result['prize'].keys():
+                index_values[issue][key] = result['prize'][key]['winners']
         else:
-            result = from_vipc(url = f"https://www.vipc.cn/result/ssq/{str(issue)}")
-            if (set(reb_balls) == set(result['red'])) and \
+            logging.info(f"https://zx.500.com/ssq/{str(issue)}/ ,{issue}")
+            result = from_78500(url = f"https://m.78500.cn/kaijiang/ssq/{str(issue)}.html")
+            if (result != None) and \
+                (set(reb_balls) == set(result['red'])) and \
                 (set(blue_balls) == set(result['blue'])) and \
                 (left == result['left']) and \
                 (yidengrenshu == result['prize']['一等奖']['winners']) and \
@@ -55,9 +60,69 @@ def from_datachart500():
                 index_values[issue]['sales'] = value
                 for key in result['prize'].keys():
                     index_values[issue][key] = result['prize'][key]['winners']
+            else:
+                logging.info(f"https://m.78500.cn/kaijiang/ssq/{str(issue)}.html ,{issue}")
+                result = from_vipc(url = f"https://www.vipc.cn/result/ssq/{str(issue)}")
+                if (result != None) and \
+                    (set(reb_balls) == set(result['red'])) and \
+                    (set(blue_balls) == set(result['blue'])) and \
+                    (left == result['left']) and \
+                    (yidengrenshu == result['prize']['一等奖']['winners']) and \
+                    (yidengjiang == result['prize']['一等奖']['prize_amount']) and \
+                    (erdengrenshu == result['prize']['二等奖']['winners']) and \
+                    (erdengjiang == result['prize']['二等奖']['prize_amount']) and \
+                    (value == result['sales']):
+                    index_values[issue] = {}
+                    index_values[issue]['red'] = reb_balls
+                    index_values[issue]['blue'] = blue_balls[0]
+                    index_values[issue]['sales'] = value
+                    for key in result['prize'].keys():
+                        index_values[issue][key] = result['prize'][key]['winners']
+                else:
+                    logging.info(f"https://www.vipc.cn/result/ssq/{str(issue)} ,没有记录: {issue}")
+                    break
+                    
+# https://m.78500.cn/kaijiang/ssq/2025017.html
+def from_78500(url = "https://m.78500.cn/kaijiang/ssq/2025015.html",\
+    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
+    logging.info(f"url: {url}")
+    try:
+        result = {}
+        response = requests.get(url, headers = headers)
+        #print(response.text)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        numbers = soup.select('.winning-results .number i')
+        sales = soup.select_one('.article .gray2:nth-of-type(1)')
+        sales_number = sales.text.replace(',', '').strip()
+        sales_number = re.search(r'\d+', sales_number).group()
+        if numbers and (int(sales_number) != 0):
+            red_balls = [int(ball.text) for ball in soup.select('.c-red')]
+            blue_balls = [int(ball.text) for ball in soup.select('.c-blue')]
+            if len(red_balls) != 6 or len(blue_balls) != 1:
+                logging.info(f"Error: {url}")
+            result['red'] = red_balls
+            result['blue'] = blue_balls
+            # 解析额外信息
+            result['sales'] = int(sales_number)
+            result['left'] = int(soup.select_one('.article p.yellow').text.replace('元', '').replace(',', '').strip().split('：')[1])
+            winners = soup.select('.winner-list tbody tr')
+            prizes = {}
+            for winner in winners:
+                cells = winner.find_all('td')
+                if len(cells) == 3:
+                    award_name = cells[0].text.strip()
+                    prizes[award_name[:3]] = {}
+                    prizes[award_name[:3]]['winners'] = int(cells[1].text.strip())
+                    prizes[award_name[:3]]['prize_amount'] = int(cells[2].text.strip())
+            result['prize'] = prizes
+            return result
+        else:
+            return None
+    except:
+        return None
 
 # "https://zx.500.com/ssq/2025016/"       
-def from_zx500(url = "https://zx.500.com/ssq/2025016/"):
+def from_zx500(url = "https://zx.500.com/ssq/2025001/"):
     logging.info(f"url: {url}")
     try:
         result = {}
@@ -90,37 +155,40 @@ def from_zx500(url = "https://zx.500.com/ssq/2025016/"):
 
 # https://www.vipc.cn/result/ssq/2025016
 # 2013年之后的才有
-def from_vipc(url = 'https://www.vipc.cn/result/ssq/2014001' , headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
+def from_vipc(url = 'https://www.vipc.cn/result/ssq/2003001' , headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
     logging.info(f"url: {url}")
-    result = {}
-    response = requests.get(url, headers = headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    red_balls = [int(ball.text.replace(",", "").strip()) for ball in soup.select('.vRes_lottery_ball b.red')]
-    blue_balls = [int(ball.text.replace(",", "").strip()) for ball in soup.select('.vRes_lottery_ball b.blue')]
-    if len(red_balls) != 6 or len(blue_balls) != 1:
-        logging.info(f"Error: {url}")
-    result['red'] = red_balls
-    result['blue'] = blue_balls
-    divs = soup.find_all('div', class_='vResult_contentDigit_main_item')
-    for div in divs:
-        if div:
-            text = div.text
-            name = text.split('：')[0]
-            amount_part = text.split('：')[1]
-            if '奖池滚存' in name:
-                result['left'] = int(amount_part.strip().replace('元', '').replace(',', '').strip())
-            elif '本期销量' in name:
-                result['sales'] = int(amount_part.strip().replace('元', '').replace(',', '').strip())
-    prizes = {}
-    table_rows = soup.select('.vResult_contentDigit_table tr')
-    for row in table_rows[1:]:  # Skip the header row
-        cells = row.find_all('td')
-        if len(cells) == 3:
-            prizes[cells[0].text.strip()] = {}
-            prizes[cells[0].text.strip()]['winners'] = int(cells[1].text.replace(",", "").strip())
-            prizes[cells[0].text.strip()]['prize_amount'] = int(cells[2].text.replace(",", "").strip())
-    result['prize'] = prizes
-    return result
+    try:
+        result = {}
+        response = requests.get(url, headers = headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        red_balls = [int(ball.text.replace(",", "").strip()) for ball in soup.select('.vRes_lottery_ball b.red')]
+        blue_balls = [int(ball.text.replace(",", "").strip()) for ball in soup.select('.vRes_lottery_ball b.blue')]
+        if len(red_balls) != 6 or len(blue_balls) != 1:
+            logging.info(f"Error: {url}")
+        result['red'] = red_balls
+        result['blue'] = blue_balls
+        divs = soup.find_all('div', class_='vResult_contentDigit_main_item')
+        for div in divs:
+            if div:
+                text = div.text
+                name = text.split('：')[0]
+                amount_part = text.split('：')[1]
+                if '奖池滚存' in name:
+                    result['left'] = int(amount_part.strip().replace('元', '').replace(',', '').strip())
+                elif '本期销量' in name:
+                    result['sales'] = int(amount_part.strip().replace('元', '').replace(',', '').strip())
+        prizes = {}
+        table_rows = soup.select('.vResult_contentDigit_table tr')
+        for row in table_rows[1:]:  # Skip the header row
+            cells = row.find_all('td')
+            if len(cells) == 3:
+                prizes[cells[0].text.strip()] = {}
+                prizes[cells[0].text.strip()]['winners'] = int(cells[1].text.replace(",", "").strip())
+                prizes[cells[0].text.strip()]['prize_amount'] = int(cells[2].text.replace(",", "").strip())
+        result['prize'] = prizes
+        return result
+    except:
+        return None
     
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -129,3 +197,4 @@ if __name__ == "__main__":
         json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
     #print(from_vipc())
     #print(from_zx500())
+    #print(from_78500())
