@@ -25,8 +25,7 @@ jobs:
 
     - name: Run script
       run: cd ticket && python get_issue_values2.py
-      env:
-
+      
     - name: Upload results
       uses: actions/upload-artifact@v2
       with:
