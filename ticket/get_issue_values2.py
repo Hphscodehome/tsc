@@ -1,8 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
 import logging,json,re
+import time
 
 index_values = {}
+all_keys = ['一等奖','二等奖','三等奖','四等奖','五等奖','六等奖']
 
 def from_datachart500():
     global index_values
@@ -21,65 +23,66 @@ def from_datachart500():
         yidengjiang = int(cells[11].text.replace(",", "").strip()) # 一等奖金
         erdengrenshu = int(cells[12].text.replace(",", "").strip()) # 二等人数
         erdengjiang = int(cells[13].text.replace(",", "").strip()) # 二等奖金
+        #print(yidengrenshu,yidengjiang,erdengrenshu,erdengjiang)
         reb_balls = [int(cells[i].text.strip()) for i in range(1,7)] # 红球
         blue_balls = [int(cells[7].text.strip())] # 蓝球
         if len(reb_balls) != 6 or len(blue_balls) != 1:
             logging.info(f"Error: {issue}")
-        result = from_zx500(url = f"https://zx.500.com/ssq/{str(issue)}/")
+        
+        url = f"https://m.78500.cn/kaijiang/ssq/{str(issue)}.html"
+        result = from_78500(url = url)
         
         if (result != None) and \
-            (set(reb_balls) == set(result['red'])) and \
-            (set(blue_balls) == set(result['blue'])) and \
-            (left == result['left']) and \
-            (yidengrenshu == result['prize']['一等奖']['winners']) and \
-            (yidengjiang == result['prize']['一等奖']['prize_amount']) and \
-            (erdengrenshu == result['prize']['二等奖']['winners']) and \
-            (erdengjiang == result['prize']['二等奖']['prize_amount']):
-            set(list(result['prize'].keys())) == set(['一等奖','二等奖','三等奖','四等奖','五等奖','六等奖'])
+            (set(all_keys) <= set(list(result['prize'].keys()))) and \
+            (yidengrenshu == result['prize']['一等奖']['winners'] or \
+            yidengjiang == result['prize']['一等奖']['prize_amount'] or \
+            erdengrenshu == result['prize']['二等奖']['winners'] or \
+            erdengjiang == result['prize']['二等奖']['prize_amount']):
+            
             index_values[issue] = {}
             index_values[issue]['red'] = reb_balls
             index_values[issue]['blue'] = blue_balls[0]
             index_values[issue]['sales'] = value
-            for key in result['prize'].keys():
+            for key in all_keys:
                 index_values[issue][key] = result['prize'][key]['winners']
         else:
-            logging.info(f"https://zx.500.com/ssq/{str(issue)}/ ,{issue}")
-            result = from_78500(url = f"https://m.78500.cn/kaijiang/ssq/{str(issue)}.html")
+            logging.info(f"{url} , not found, {issue}")
+            
+            url = f"https://www.vipc.cn/result/ssq/{str(issue)}"
+            result = from_vipc(url = url)
             if (result != None) and \
-                (set(reb_balls) == set(result['red'])) and \
-                (set(blue_balls) == set(result['blue'])) and \
-                (left == result['left']) and \
-                (yidengrenshu == result['prize']['一等奖']['winners']) and \
-                (yidengjiang == result['prize']['一等奖']['prize_amount']) and \
-                (erdengrenshu == result['prize']['二等奖']['winners']) and \
-                (erdengjiang == result['prize']['二等奖']['prize_amount']) and \
-                (value == result['sales']):
+                (set(all_keys) <= set(list(result['prize'].keys()))) and \
+                (yidengrenshu == result['prize']['一等奖']['winners'] or \
+                yidengjiang == result['prize']['一等奖']['prize_amount'] or \
+                erdengrenshu == result['prize']['二等奖']['winners'] or \
+                erdengjiang == result['prize']['二等奖']['prize_amount']):
+                    
                 index_values[issue] = {}
                 index_values[issue]['red'] = reb_balls
                 index_values[issue]['blue'] = blue_balls[0]
                 index_values[issue]['sales'] = value
-                for key in result['prize'].keys():
+                for key in all_keys:
                     index_values[issue][key] = result['prize'][key]['winners']
             else:
-                logging.info(f"https://m.78500.cn/kaijiang/ssq/{str(issue)}.html ,{issue}")
-                result = from_vipc(url = f"https://www.vipc.cn/result/ssq/{str(issue)}")
+                logging.info(f"{url} , not found, {issue}")
+                url = f"https://zx.500.com/ssq/{str(issue)}/"
+                result = from_zx500(url = url)
+                
                 if (result != None) and \
-                    (set(reb_balls) == set(result['red'])) and \
-                    (set(blue_balls) == set(result['blue'])) and \
-                    (left == result['left']) and \
-                    (yidengrenshu == result['prize']['一等奖']['winners']) and \
-                    (yidengjiang == result['prize']['一等奖']['prize_amount']) and \
-                    (erdengrenshu == result['prize']['二等奖']['winners']) and \
-                    (erdengjiang == result['prize']['二等奖']['prize_amount']) and \
-                    (value == result['sales']):
+                    (set(all_keys) <= set(list(result['prize'].keys()))) and \
+                    (yidengrenshu == result['prize']['一等奖']['winners'] or \
+                    yidengjiang == result['prize']['一等奖']['prize_amount'] or \
+                    erdengrenshu == result['prize']['二等奖']['winners'] or \
+                    erdengjiang == result['prize']['二等奖']['prize_amount']):
+                        
                     index_values[issue] = {}
                     index_values[issue]['red'] = reb_balls
                     index_values[issue]['blue'] = blue_balls[0]
                     index_values[issue]['sales'] = value
-                    for key in result['prize'].keys():
+                    for key in all_keys:
                         index_values[issue][key] = result['prize'][key]['winners']
                 else:
-                    logging.info(f"https://www.vipc.cn/result/ssq/{str(issue)} ,没有记录: {issue}")
+                    logging.info(f"{url} ,没有记录: {issue}")
                     break
                     
 # https://m.78500.cn/kaijiang/ssq/2025017.html
@@ -122,11 +125,11 @@ def from_78500(url = "https://m.78500.cn/kaijiang/ssq/2025015.html",\
         return None
 
 # "https://zx.500.com/ssq/2025016/"       
-def from_zx500(url = "https://zx.500.com/ssq/2025001/"):
+def from_zx500(url = "https://zx.500.com/ssq/2015053/", headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}):
     logging.info(f"url: {url}")
     try:
         result = {}
-        response = requests.get(url)
+        response = requests.get(url,headers = headers)
         response.encoding = 'gb2312'
         html_content = response.text
         #print(html_content)
