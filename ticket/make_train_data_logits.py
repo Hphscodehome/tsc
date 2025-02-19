@@ -39,6 +39,7 @@ if __name__ == '__main__':
     
     lanqius = get_sales() # 从大到小
     lanqius.reverse() # 从小到大 全部
+    assert len(lanqius) == len(all_indexs),"invalid length"
     
     file = './data/artificial_issues.txt'
     index = read_list_from_file(file) # 无序 部分 人工部分
