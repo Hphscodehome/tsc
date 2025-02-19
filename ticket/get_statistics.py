@@ -70,7 +70,7 @@ def open_file(file):
 """)
     logging.info(f"{Total_tongjis[:10]}")
     
-    for i,key in enumerate([np.percentile(sorted_Total_tongjis, 40)]):
+    for i,key in enumerate([np.percentile(sorted_Total_tongjis, 33)]):
         
         logging.info(f"{key},./data/artificial_issues.txt")
         with open(f"./data/artificial_issues.txt", 'w', encoding='utf-8') as f:

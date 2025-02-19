@@ -10,7 +10,7 @@ if __name__ == '__main__':
     
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="命令行参数截断值")
-    parser.add_argument("-e", "--end", type=int, help="截断值",default=9)
+    parser.add_argument("-e", "--end", type=int, help="截断值",default=6)
     args = parser.parse_args()
     logging.info(f"当前试验截断值为：{args.end}")
     
