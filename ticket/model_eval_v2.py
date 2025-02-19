@@ -70,7 +70,7 @@ if __name__ == '__main__':
     state_dict = torch.load(checkpoint_path, weights_only=False)
     model.load_state_dict(state_dict)
     
-    test = torch.tensor(logits[-args.end:],dtype=torch.float32)
+    test = torch.tensor(logits[len(logits)-(args.end):len(logits)-0],dtype=torch.float32)
     logging.info(f"真实测试数据是：{test}")
     with torch.no_grad():
         outputs = model(test.unsqueeze(0))

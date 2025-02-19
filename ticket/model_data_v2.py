@@ -18,8 +18,7 @@ class Model(nn.Module):
                 nn.LeakyReLU(),
                 nn.Linear(5, 7),
                 nn.LeakyReLU(),
-                nn.Linear(7, output_dimension),
-                nn.Tanh()
+                nn.Linear(7, output_dimension)
             )
             
         self.networks2 = nn.ModuleDict()
@@ -30,8 +29,7 @@ class Model(nn.Module):
                 nn.LeakyReLU(),
                 nn.Linear(5, 7),
                 nn.LeakyReLU(),
-                nn.Linear(7, output_dimension),
-                nn.Tanh()
+                nn.Linear(7, output_dimension)
             )
             
         self.networks3 = nn.ModuleDict()
@@ -39,8 +37,7 @@ class Model(nn.Module):
             self.networks3[str(i)] = nn.Sequential(
                 nn.Linear(output_dimension, 7),
                 nn.LeakyReLU(),
-                nn.Linear(7, output_dimension),
-                nn.Tanh()
+                nn.Linear(7, output_dimension)
             )
         
         self.multihead_attn = nn.MultiheadAttention(3*output_dimension, num_heads=1)
@@ -59,19 +56,19 @@ class Model(nn.Module):
         out1 = []
         for i in range(seq_length):
             network = self.networks[str(i)]#4*16
-            out1.append(network(x[:, i,-2].to(torch.int64).unsqueeze(1)).squeeze(1))
+            out1.append(torch.clamp(network(x[:, i,-2].to(torch.int64).unsqueeze(1)),min=-5,max=2).squeeze(1))
         out1 = torch.stack(out1,dim=1)
         
         out2 = []
         for i in range(seq_length):
             network = self.networks2[str(i)]#4*16
-            out2.append(network(x[:, i,-1].to(torch.int64).unsqueeze(1)).squeeze(1))
+            out2.append(torch.clamp(network(x[:, i,-1].to(torch.int64).unsqueeze(1)),min=-5,max=2).squeeze(1))
         out2 = torch.stack(out2,dim=1)
         
         out3 = []
         for i in range(seq_length):
             network = self.networks3[str(i)]#4*16
-            out3.append(network(x[:, i,:-2].to(torch.float32)))
+            out3.append(torch.clamp(network(x[:, i,:-2].to(torch.float32)),min=-5,max=2))
         out3 = torch.stack(out3,dim=1)
         merged_tensor = torch.cat([out1, out2, out3], dim=2)
         
@@ -80,11 +77,10 @@ class Model(nn.Module):
         attn_output, attn_output_weights = self.multihead_attn(query, key, value)
         final_output = attn_output.permute(1, 0, 2)
         
-        weights = nn.Softmax(dim=-1)(nn.Tanh()(self.weight[:seq_length]))
+        weights = nn.Softmax(dim=-1)(torch.clamp(self.weight[:seq_length],min=-5,max=2))
         weights = weights.view(1,final_output.shape[1],1)  # 形状变为(1, 5, 1)
         final_output = torch.sum(final_output*weights,dim=1)
         final_output = self.output_layer(final_output)
-        
         return final_output
 
 class MyDataset(Dataset):
