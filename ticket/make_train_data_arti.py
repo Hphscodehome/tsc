@@ -61,6 +61,7 @@ if __name__ == '__main__':
             outputs = model(test.unsqueeze(0))
             logits.append(outputs.squeeze(0).tolist()+[lanqius[i+args.end]-1]+[1 if ind in index else 0])
             # logits，蓝球，是否人工设计
+            # 1就是人工设计，0就是随机
     
     # 然后构建训练数据
     train_x = []
