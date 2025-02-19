@@ -4,7 +4,7 @@ import torch.optim as optim
 from torch.utils.data import random_split, DataLoader
 import logging
 import argparse
-from model_data_v2 import Model,MyDataset
+from model_data_v1 import Model,MyDataset
 
 if __name__ == '__main__':
     
@@ -65,6 +65,6 @@ if __name__ == '__main__':
             if counter >= patience:
                 logging.info('Early stopping!')
                 break  # 提前结束训练循环
-    logging.info(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model2/best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}")
+    logging.info(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model2/best_model_{args.end}.pth,停止epoch:{epoch-counter},最优模型验证损失为：{best_val_loss}")
     with open('/data/hupenghui/Self/tsc/ticket/record.txt', 'a', encoding='utf-8') as file:
-        file.write(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model2/best_model_{args.end}.pth,最优模型验证损失为：{best_val_loss}\n")
+        file.write(f"当前试验截断值为：{args.end},文件名为：/data/hupenghui/Self/tsc/ticket/model2/best_model_{args.end}.pth,停止epoch:{epoch-counter},最优模型验证损失为：{best_val_loss}\n")
