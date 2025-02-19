@@ -45,6 +45,8 @@ if __name__ == '__main__':
 {outputs.flatten().tolist()},
 logits转化为概率分布是:
 {distribution.probs.flatten().tolist()},
+顺序是：
+{sorted(range(len(distribution.probs.flatten().tolist())), key=lambda k: distribution.probs.flatten().tolist()[k])}
 logits最大的值为:
 {torch.argmax(outputs,dim=1).item()+1}
 按照logits采样得到的结果是:
