@@ -2,7 +2,7 @@ import json
 from bs4 import BeautifulSoup
 import logging,re,requests,argparse
 import numpy as np
-from model_data_v2 import Model
+from model_data_v1 import Model
 import torch
 
 def get_sales():
@@ -25,8 +25,6 @@ def read_list_from_file(filepath):
             my_list.append(item)
     return my_list
 
-# 形状为前100期logits及对应的label，预测当前一期的label
-
 if __name__ == '__main__':
     
     logging.basicConfig(level=logging.INFO)
@@ -40,28 +38,15 @@ if __name__ == '__main__':
         results = json.load(f) # 无序 全部
     all_indexs = list(results.keys())
     all_indexs = sorted(all_indexs) # 从小到大
+    #logging.info(f"{all_indexs}")
     
     lanqius = get_sales() # 从大到小
     lanqius.reverse() # 从小到大 全部
+    #logging.info(lanqius)
     
     file = './data/artificial_issues.txt'
     index = read_list_from_file(file) # 无序 部分 人工部分
-    
-    # 首先构建训练logits模型的数据
-    train_data_x = []
-    train_data_y = []
-    
-    for i,ind in enumerate(all_indexs[args.end:]):
-        if ind in index:
-            train_data_x.append(lanqius[i:i+args.end])
-            train_data_y.append(lanqius[i+args.end])
-            
-    with open("./data/train_x_5.json", "w", encoding='utf-8') as f:
-        json.dump(train_data_x, f, indent=4)
-    with open("./data/train_y_5.json", "w", encoding='utf-8') as f:
-        json.dump(train_data_y, f, indent=4)
-        
-        
+
     model = Model()
     checkpoint_path = f'/data/hupenghui/Self/tsc/ticket/model2/best_model_{args.end}.pth'
     state_dict = torch.load(checkpoint_path, weights_only=False)
@@ -70,7 +55,8 @@ if __name__ == '__main__':
     # 首先构建logits数据
     logits = []
     for i,ind in enumerate(all_indexs[args.end:]):
-        test = torch.tensor(lanqius[i:i+args.end]).to(torch.int64)
+        test = torch.tensor(lanqius[i:i+args.end]).to(torch.int64)-1
+        #logging.info(f"{test}")
         with torch.no_grad():
             outputs = model(test.unsqueeze(0))
             logits.append(outputs.squeeze(0).tolist()+[lanqius[i+args.end]-1]+[1 if ind in index else 0])
