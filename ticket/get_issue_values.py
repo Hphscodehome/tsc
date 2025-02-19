@@ -8,8 +8,8 @@ all_keys = ['一等奖','二等奖','三等奖','四等奖','五等奖','六等�
 
 def from_datachart500():
     global index_values
-    #with open('./data/issue_values.json', 'r', encoding='utf-8') as f:
-    #    index_values = json.load(f)# 全部
+    with open('./data/issue_values.json', 'r', encoding='utf-8') as f:
+        index_values = json.load(f)# 全部
     url = 'https://datachart.500.com/ssq/history/newinc/history.php?start=00000&end=99999'
     response = requests.get(url,
                             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'})
