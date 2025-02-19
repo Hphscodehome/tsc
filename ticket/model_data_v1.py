@@ -17,8 +17,7 @@ class Model(nn.Module):
                 nn.LeakyReLU(),
                 nn.Linear(5, 7),
                 nn.LeakyReLU(),
-                nn.Linear(7, output_dimension),
-                nn.Tanh()
+                nn.Linear(7, output_dimension)
             )
         self.multihead_attn = nn.MultiheadAttention(output_dimension, num_heads=1)
         self.weight = nn.Parameter(torch.randn(max_length))
@@ -35,12 +34,12 @@ class Model(nn.Module):
         out = []
         for i in range(seq_length):
             network = self.networks[str(i)]#4*16
-            out.append(network(x[:, i].unsqueeze(1)).squeeze(1))
+            out.append(torch.clamp(network(x[:, i].unsqueeze(1)),min=-5,max=2).squeeze(1))
         out = torch.stack(out,dim=1)
         query = key = value = out.permute(1, 0, 2)  # 形状变为 (5, 4, 16)
         attn_output, attn_output_weights = self.multihead_attn(query, key, value)
         final_output = attn_output.permute(1, 0, 2)
-        weights = nn.Softmax(dim=-1)(nn.Tanh()(self.weight[:seq_length]))
+        weights = nn.Softmax(dim=-1)(torch.clamp(self.weight[:seq_length],min=-5,max=2))
         weights = weights.view(1,final_output.shape[1],1)  # 形状变为(1, 5, 1)
         final_output = torch.sum(final_output*weights,dim=1)
         return final_output
