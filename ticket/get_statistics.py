@@ -5,6 +5,7 @@ import statistics
 
 all_keys = ['一等奖','二等奖','三等奖','四等奖','五等奖','六等奖']
 noise = 0.01
+train_start = 100
 
 def get_shouchu_huishou(_keys,results):
     tongjis = []
@@ -40,7 +41,7 @@ def open_file(file):
     Total_smallresults = Total_tongjis[Total_tongjis <= 1/16]
     
     
-    Partial_keys = _keys[:-100]# 去掉前一百个的部分
+    Partial_keys = _keys[:-train_start]# 去掉前一百个的部分
     Partial_tongjis,Partial_qihaos = get_shouchu_huishou(Partial_keys,results)
     Partial_tongjis = np.array(Partial_tongjis)
     Partial_qihaos = np.array(Partial_qihaos,dtype=object)
