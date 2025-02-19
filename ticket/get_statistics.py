@@ -19,7 +19,7 @@ def get_shouchu_huishou(_keys,results):
             tongjis.append(huishou/shouchu)
             qihaos.append(key)
         else:
-            logging.info(f"qihao: {key}")
+            logging.info(f"error qihao: {key}")
             tongjis.append(0)
             qihaos.append(key)
     return tongjis,qihaos

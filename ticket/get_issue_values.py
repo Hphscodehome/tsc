@@ -248,6 +248,7 @@ if __name__ == "__main__":
     from_datachart500()
     with open('./data/issue_values.json', 'w', encoding='utf-8') as f:
         json.dump(index_values, f, indent=4)  # indent=4 表示缩进 4 个空格
+    logging.info(f"done")
     '''
     issue = '2009001'
     urls = [
