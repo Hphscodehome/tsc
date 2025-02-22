@@ -15,3 +15,4 @@ while step < 20:
     logging.info(f"obs, rewards, dones, infos : {obs},\n,{rewards},\n,{dones},\n,{infos}")
     step += 1
 world.close()
+logging.info(f"all done")
