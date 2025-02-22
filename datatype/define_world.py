@@ -33,7 +33,7 @@ class World(gym.Env):
             
         self.eng = traci
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg]
-        
+        self.eng.start(self.cmd)
         self.inters = [Intersection(self.eng, intersection_id, self.intersection_2_position[intersection_id], self.intersection_2_updownstream, self.lane_2_shape, self.lane_2_updownstream) for intersection_id in self.intersection_2_updownstream.keys()]
         self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
@@ -85,6 +85,12 @@ class World(gym.Env):
             observations[inter.id] = inter.get_observation()
         return observations
     
+    def _get_dones(self):
+        dones = defaultdict(bool)
+        for index, inter in enumerate(self.inters):
+            dones[inter.id] = inter.get_done()
+        return dones
+    
     def _get_reward_info(self):
         rewards = defaultdict(float)
         infos = defaultdict(lambda :Indicators())
@@ -95,13 +101,7 @@ class World(gym.Env):
         indicator = self.get_all_info()
         infos['global'] = indicator
         return rewards, infos
-    
-    def _get_dones(self):
-        dones = defaultdict(bool)
-        for index, inter in enumerate(self.inters):
-            dones[inter.id] = inter.get_done()
-        return dones
-    
+
     #region global_reward
     def get_all_info(self):
         # 上个时间段离开路网的车辆数量 辆数
