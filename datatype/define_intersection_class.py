@@ -42,7 +42,11 @@ class Intersection():
             "current_phase": self.get_current_phase
         }
         self.obs_fn = ['vehicle_map','current_phase','lane_waiting_time','lane_halting_numbers','lane_vehicle_numbers','lane_average_speed']
-    
+        phase = self.get_current_phase()
+        phase_str = phase.phase_str
+        #logging.info(f"{self.lanes_conflict_map}")
+        self.eng.trafficlight.setRedYellowGreenState(self.id,'r'*len(phase_str))
+        
     #region 设置相位 
     def get_phase(self,action):
         # action lanes*2
@@ -70,15 +74,27 @@ class Intersection():
                 _id += 1
                 _id = _id % Chars
             lane_char = get_char(_id)
-            result[lane_sample] = lane_char
             if lane_char != 'r':
                 conflict_lanes =(torch.tensor(self.lanes_conflict_map[lane_sample,:])>0)
-                mask = mask | conflict_lanes
+                can_change = True
                 for index,flag in enumerate(conflict_lanes):
                     if flag:
-                        result[index] = 'r'
+                        if phase_str[index] == 'g':
+                            can_change = False
+                            break
+                if can_change:
+                    result[lane_sample] = lane_char
+                    mask = mask | conflict_lanes
+                    for index,flag in enumerate(conflict_lanes):
+                        if flag:
+                            result[index] = 'r'
+                else:
+                    result[lane_sample] = phase_str[lane_sample]
+            else:
+                result[lane_sample] = lane_char
             mask[lane_sample] = True
         self.set_phase = ''.join(result)
+        logging.info(f"origin:{phase.phase_str},next:{''.join(result)}")
         self.eng.trafficlight.setRedYellowGreenState(self.id,self.set_phase)
         
     def step(self,action):
