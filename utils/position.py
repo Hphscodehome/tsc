@@ -18,25 +18,32 @@ def judge_cross(line_A,line_B):
 
 # 判断A,B,C的方向
 def direction(A, B, C):
+    # 以从A到B为基准，
+    # 如果C在AB的左侧，返回正数
+    # 如果C在AB的右侧，返回负数
+    # 如果共线，返回0，但是既有可能在ab延长线，也有可能在ba延长线，也有可能在ab上
     return (B[0] - A[0]) * (C[1] - A[1]) - (B[1] - A[1]) * (C[0] - A[0])
 
 def on_segment(A, B, C):
-    return (min(A[0], B[0]) <= C[0] <= max(A[0], B[0]) and
-            min(A[1], B[1]) <= C[1] <= max(A[1], B[1]))
+    return (min(A[0], B[0]) < C[0] < max(A[0], B[0]) and
+            min(A[1], B[1]) < C[1] < max(A[1], B[1]))
 
 def segments_intersect(A, B, C, D):
     d1 = direction(A, B, C)
     d2 = direction(A, B, D)
     d3 = direction(C, D, A)
     d4 = direction(C, D, B)
-
     # 检查一般情况
     if d1 * d2 < 0 and d3 * d4 < 0:
         #交叉
+        # 全部不为0，同时CD对AB来说一左一右
+        # AB对CD来说也是一左一右
+        # 则必定交叉
         return True
 
     # 检查特殊情况
     if d1 == 0 and on_segment(A, B, C):
+        # 如果C在AB直线上
         return True
     if d2 == 0 and on_segment(A, B, D):
         return True
@@ -49,6 +56,6 @@ def segments_intersect(A, B, C, D):
 
 if __name__ == '__main__':
     line_A = [(0,0),(2,2)]
-    line_B = [(2,0),(0,2)]
+    line_B = [(0.1,0.1),(0,2)]
     print(judge_cross(line_A,line_B))
 
