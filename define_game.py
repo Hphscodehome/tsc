@@ -30,13 +30,16 @@ class Game():
         self.state = self.world.reset()
         
     def play(self, end = 20):
+        self.recoder = defaultdict(lambda: defaultdict(lambda: deque(maxlen=self.max_length)))
+        self.infos = deque(maxlen=self.max_length)
         step = 0
         while step < end:
-            actions = self.world_agent.step(self.state)
+            actions,log_probs = self.world_agent.step(self.state)
             obs, rewards, dones, infos = self.world.step(actions)
             for inter in self.world.inters:
                 self.recoder[inter.id]['b_state'].append(self.state[inter.id])
                 self.recoder[inter.id]['reward'].append(rewards[inter.id])
+                self.recoder[inter.id]['log_prob'].append(log_probs[inter.id])
                 self.recoder[inter.id]['action'].append(actions[inter.id])
                 self.recoder[inter.id]['a_state'].append(obs[inter.id])
                 self.recoder[inter.id]['done'].append(dones[inter.id])
