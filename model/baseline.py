@@ -17,7 +17,7 @@ class Model(nn.Module):
         :param log_dir: defaults to './log/'
         """
         super(Model,self).__init__()
-        logging.info(f"{kwargs}")
+        #logging.info(f"{kwargs}")
         model_type, device, log_dir = kwargs['model_type'], kwargs['device'], kwargs['log_dir'],
         assert model_type in [None, "actor", "critic"]
         self.model_type = model_type
@@ -29,10 +29,19 @@ class Model(nn.Module):
         
 
     def _init_weights(self, module, gain=1.0):
-        if isinstance(module, nn.Linear) or isinstance(module, nn.Embedding):
-            nn.init.orthogonal_(module.weight, gain=gain)
+        if isinstance(module, nn.Linear):
+            # 对于Linear层，fan_in是输入维度
+            fan_in = module.weight.size(1)
+            # 使用凯明正态初始化
+            nn.init.kaiming_normal_(module.weight, a=0, mode='fan_in', nonlinearity='relu')
+            # 如果有偏置，初始化为0
             if hasattr(module, "bias") and module.bias is not None:
                 module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
+            # 对于Embedding层，fan_in是词典大小
+            fan_in = module.weight.size(0)
+            # 使用凯明正态初始化
+            nn.init.kaiming_normal_(module.weight, a=0, mode='fan_in', nonlinearity='relu')
                 
     def preprocess_obs(self, obs):
         raise NotImplementedError
