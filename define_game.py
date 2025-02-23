@@ -96,6 +96,7 @@ async def main():
         logging.info(game.infos)
         await game.train()
         game.evaluate(end = 500, round = i)
+        game.world_agent.save(round=i)
     # pdb.set_trace()
     logging.info(f"done with: {game.cfg}")
     

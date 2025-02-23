@@ -71,6 +71,7 @@ class feature_specific_Model_actor(Model):
         self.mu_head = nn.Linear(self.merge_in,2)
         self.log_sigma_head = nn.Linear(self.merge_in,2)
         self.apply(self._init_weights)
+        self.trained_step = 0
         
     def get_mu_sigma(self,obs):
         obs = self.preprocess_obs(obs)
@@ -260,6 +261,7 @@ class feature_specific_Model_critic(Model):
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.value_head = nn.Linear(self.merge_in,1)
         self.apply(self._init_weights)
+        self.trained_step = 0
         
     def forward(self,obs):
         obs = self.preprocess_obs(obs)
