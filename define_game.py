@@ -54,7 +54,7 @@ class Game():
                 self.recoder[inter.id]['done'].append(dones[inter.id])
             self.infos.append(infos)
             for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums']:
-                self.train_writer.add_scalar(f"infos_{str(epoch)}/{inter.id}/{key}", infos[inter.id].dict()[key], step)
+                self.train_writer.add_scalar(f"infos_{str(epoch)}/{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
             self.state = obs
             step += 1
         
@@ -72,8 +72,8 @@ class Game():
                 self.eval_writer.add_scalar(f"reward_{str(round)}/{inter.id}", rewards[inter.id], step)
                 self.eval_writer.add_scalar(f"total_reward_{str(round)}/{inter.id}", total_reward[inter.id], step)
                 self.eval_writer.add_scalar(f"eval_values_{str(round)}/{inter.id}", eva_values[inter.id], step)
-            for key in ['throughput','average_delay','wait_time_ascend','total_vehicles']:
-                self.eval_writer.add_scalar(f"infos_{str(round)}/{inter.id}/{key}", infos[inter.id].dict()[key], step)
+            for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums']:
+                self.eval_writer.add_scalar(f"infos_{str(round)}/{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
             
             self.state = obs
             step += 1
@@ -91,7 +91,7 @@ async def main():
     logging.basicConfig(level=logging.INFO)
     sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
     game = Game(sumocfg=sumocfg)
-    for i in range(20):
+    for i in range(10):
         game.play(end= 1000, epoch= i)
         logging.info(game.infos)
         await game.train()
