@@ -46,7 +46,7 @@ class Intersection():
         phase_str = phase.phase_str
         #logging.info(f"{self.lanes_conflict_map}")
         self.eng.trafficlight.setRedYellowGreenState(self.id,'r'*len(phase_str))
-        logging.info(f"origin:{'r'*len(phase_str)}")
+        #logging.info(f"origin:{'r'*len(phase_str)}")
         
     #region 设置相位 
     def get_phase(self,action):
@@ -96,7 +96,7 @@ class Intersection():
             mask[lane_sample] = True
         self.set_phase = ''.join(result)
         #logging.info(f"origin:{phase.phase_str},next:{''.join(result)}")
-        logging.info(f"next:{''.join(result)}")
+        #logging.info(f"next:{''.join(result)}")
         self.eng.trafficlight.setRedYellowGreenState(self.id,self.set_phase)
         
     def step(self,action):
@@ -310,8 +310,10 @@ class Intersection():
             else:
                 # 通行比例大则奖励大
                 reward = - math.log(indicator.wait_time_ascend,7) * (1 - (indicator.throughput / indicator.total_vehicles))
+        elif indicator.wait_time_ascend < 0:
+            reward = math.log(-indicator.wait_time_ascend,7)
         else:
-            reward = 2
+            reward = 0
         #reward += -0.7*indicator.average_delay
         #reward += 0.3*indicator.throughput
         return reward, indicator
