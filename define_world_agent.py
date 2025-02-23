@@ -9,12 +9,14 @@ import asyncio
 import pdb
 import numpy as np
 import random
+import os
 #endregion
 
 #region my-package
 from model.define_modelv2 import * #feature_specific_Model_actor,feature_specific_Model_critic
 from registry.define_registry import Registry
 from utils.constants import obs_fn
+from utils.paths import get_unique_log_dir
 #endregion
 
 class World_agent():
@@ -31,7 +33,7 @@ class World_agent():
                 'use_func': obs_fn,
                 'model_type': 'actor',
                 'device': 'cpu',
-                'log_dir': './logs'
+                'log_dir': os.path.join(get_unique_log_dir(),inter.id,'actor')
             }
             self.actors[inter.id] = Registry.mapping['actor']['feature_specific'](**kwargs)
             self.target_actors[inter.id] = Registry.mapping['actor']['feature_specific'](**kwargs)
@@ -41,7 +43,7 @@ class World_agent():
                 'use_func': obs_fn,
                 'model_type': 'critic',
                 'device': 'cpu',
-                'log_dir': './logs'
+                'log_dir': os.path.join(get_unique_log_dir(),inter.id,'critic')
             }
             self.critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
@@ -123,7 +125,7 @@ class World_agent():
         old_log_probs = torch.FloatTensor(records["log_prob"])
         
         flag = True
-        num_epochs = 4
+        num_epochs = 6
         batch_size = 100
         clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
@@ -131,6 +133,7 @@ class World_agent():
         if flag:
             for epoch in range(num_epochs):
                 permutation = torch.randperm(len(records['b_state']))
+                batchs = len(range(0,len(records['b_state']),batch_size))
                 for i in range(0,len(records['b_state']),batch_size):
                     indices = permutation[i:i+batch_size]
                     
@@ -144,6 +147,7 @@ class World_agent():
                     batch_old_log_probs = old_log_probs[indices]
                     logging.info(f"batch_old_log_probs: {batch_old_log_probs}")
                     ratio = torch.exp(torch.clamp(new_log_probs - batch_old_log_probs, min=-1e10, max=3))
+                    logging.info(f"logs differ: {new_log_probs - batch_old_log_probs}")
                     logging.info(f"ratio: {ratio}")
                     batch_advantages = advantages[indices]
                     logging.info(f"batch advantage: {batch_advantages}")
@@ -156,6 +160,7 @@ class World_agent():
                     #logging.info(f"actor:{actor.mu_head.weight}")
                     actor_optimizer.step()
                     logging.info(f"{policy_loss},actor:{actor.mu_head.weight}")
+                    actor.writer.add_scalar("Loss/train", policy_loss.item(), epoch*batchs+i)
                     
                     # 价值函数损失（均方误差）
                     batch_returns = returns[indices]
@@ -165,7 +170,9 @@ class World_agent():
                     value_loss.backward()
                     torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
                     critic_optimizer.step()
+                    critic.writer.add_scalar("Loss/train", value_loss.item(), epoch*batchs+i)
                     logging.info(f"{value_loss},critic:{critic.value_head.weight}")
+                    
         return True
     
     async def optimize_actor(self, inter_id, records):
