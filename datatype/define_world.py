@@ -27,10 +27,11 @@ class World(gym.Env):
         self.intersection_2_updownstream=netconfig.intersection_2_updownstream
         self.lane_2_updownstream=netconfig.lane_2_updownstream
         self.intersection_2_position=netconfig.intersection_2_position
+        '''
         dict_net = netconfig.model_dump()
         for keyr in dict_net.keys():
             logging.info(f"{keyr},{dict_net[keyr]}")
-            
+        '''
         self.eng = traci
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg]
         self.eng.start(self.cmd)
