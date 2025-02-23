@@ -49,8 +49,8 @@ class World_agent():
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
             
-            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=0.01)
-            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=0.01)
+            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=0.0001)
+            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=0.0001)
             self.actors_prob[inter.id] = 0.3
             
     def save(self,round=0):
@@ -150,7 +150,7 @@ class World_agent():
         old_log_probs = torch.FloatTensor(records["log_prob"])
         
         flag = True
-        num_epochs = 6
+        num_epochs = 10
         batch_size = 100
         clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
