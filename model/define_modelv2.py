@@ -121,7 +121,7 @@ class feature_specific_Model_actor(Model):
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         #mu = torch.tanh(mu)
         #log_sigma = torch.tanh(log_sigma)
-        mu = mu.clamp(min=-10, max=10)  # 限制mu范围
+        mu = mu.clamp(min=-5, max=5)  # 限制mu范围
         log_sigma = log_sigma.clamp(min=-1, max=3)
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         sigma = torch.exp(log_sigma)  # 限制sigma范围
@@ -213,7 +213,7 @@ class feature_specific_Model_actor(Model):
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         #mu = torch.tanh(mu)
         #log_sigma = torch.tanh(log_sigma)
-        mu = mu.clamp(min=-10, max=10)  # 限制mu范围
+        mu = mu.clamp(min=-5, max=5)  # 限制mu范围
         log_sigma = log_sigma.clamp(min=-1, max=3)
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         sigma = torch.exp(log_sigma)  # 限制sigma范围
