@@ -127,6 +127,8 @@ class World(gym.Env):
         wait_time_ascend = thisstep_total - self.last_step_waittime
         self.last_step_vehicles = vehicles
         self.last_step_waittime = thisstep_total
+        
+        
         return Indicators(total_vehicles = len(total_vehicles),
                           wait_time_ascend = wait_time_ascend,
                           throughput = throughput,

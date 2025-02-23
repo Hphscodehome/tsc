@@ -46,6 +46,7 @@ class Intersection():
         phase_str = phase.phase_str
         #logging.info(f"{self.lanes_conflict_map}")
         self.eng.trafficlight.setRedYellowGreenState(self.id,'r'*len(phase_str))
+        logging.info(f"origin:{'r'*len(phase_str)}")
         
     #region 设置相位 
     def get_phase(self,action):
@@ -94,7 +95,8 @@ class Intersection():
                 result[lane_sample] = lane_char
             mask[lane_sample] = True
         self.set_phase = ''.join(result)
-        logging.info(f"origin:{phase.phase_str},next:{''.join(result)}")
+        #logging.info(f"origin:{phase.phase_str},next:{''.join(result)}")
+        logging.info(f"next:{''.join(result)}")
         self.eng.trafficlight.setRedYellowGreenState(self.id,self.set_phase)
         
     def step(self,action):
@@ -284,13 +286,17 @@ class Intersection():
         for veh in total_vehicles:
             thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
         wait_time_ascend = thisstep_total - self.last_step_waittime
+        total_wait_nums = 0
+        for lane in self.upstream_lanes+self.downstream_lanes:
+            total_wait_nums += self.eng.lane.getLastStepHaltingNumber(lane)
         
         self.last_step_vehicles = vehicles
         self.last_step_waittime = thisstep_total
         return Indicators(total_vehicles = len(total_vehicles),
                           wait_time_ascend = wait_time_ascend,
                           throughput = throughput,
-                          average_delay = average_delay)
+                          average_delay = average_delay,
+                          total_wait_nums = total_wait_nums)
     #endregion
     
     
