@@ -5,6 +5,7 @@ from collections import defaultdict
 import numpy as np
 import pdb
 import torch.distributions as D
+import logging
 #endregion
 
 
@@ -117,11 +118,22 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.squeeze(self.log_sigma_head(embedding))
-        sigma = torch.exp(log_sigma.clamp(min=0, max=3))  # 限制sigma范围
+        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
+        #mu = torch.tanh(mu)
+        #log_sigma = torch.tanh(log_sigma)
+        mu = mu.clamp(min=-10, max=10)  # 限制mu范围
+        log_sigma = log_sigma.clamp(min=-1, max=3)
+        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
+        sigma = torch.exp(log_sigma)  # 限制sigma范围
+        logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
+        #mu = mu.clamp(min=-10, max=10)  # 限制mu范围
+        #sigma = torch.exp(log_sigma.clamp(min=-1, max=3))  # 限制sigma范围
+        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         return mu,sigma
       
     def forward(self,obs):
         mu,sigma = self.get_mu_sigma(obs)
+        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         dist = D.Normal(mu, sigma)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum()  # 计算总对数概率
@@ -198,11 +210,19 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.squeeze(self.log_sigma_head(embedding))
-        sigma = torch.exp(log_sigma.clamp(min=0, max=3))  # 限制sigma范围
+        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
+        #mu = torch.tanh(mu)
+        #log_sigma = torch.tanh(log_sigma)
+        mu = mu.clamp(min=-10, max=10)  # 限制mu范围
+        log_sigma = log_sigma.clamp(min=-1, max=3)
+        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
+        sigma = torch.exp(log_sigma)  # 限制sigma范围
+        logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         return mu,sigma
     
     def forward_batch(self,obs):
         mu,sigma = self.get_mu_sigma_batch(obs)
+        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         dist = D.Normal(mu, sigma)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(dim=[1,2])  # 计算总对数概率
