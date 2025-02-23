@@ -1,6 +1,7 @@
 #region other-package
 import torch
 import torch.nn.functional as F
+import torch.distributions as D
 import torch.optim as optim
 from collections import defaultdict
 import logging
@@ -11,7 +12,7 @@ import random
 #endregion
 
 #region my-package
-from model.define_model import * #feature_specific_Model_actor,feature_specific_Model_critic
+from model.define_modelv2 import * #feature_specific_Model_actor,feature_specific_Model_critic
 from registry.define_registry import Registry
 from utils.constants import obs_fn
 #endregion
@@ -46,22 +47,26 @@ class World_agent():
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
             
-            self.actors_optimizer[inter.id] = optim.SGD(self.actors[inter.id].parameters(), lr=0.01)
-            self.critics_optimizer[inter.id] = optim.SGD(self.critics[inter.id].parameters(), lr=0.01)
-            self.actors_prob[inter.id] = 0.8
+            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=0.01)
+            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=0.01)
+            self.actors_prob[inter.id] = 0.3
             
     def step(self,obs):
         actions = defaultdict(lambda: torch.tensor([]))
+        log_probs = {}
         for inter_id in list(self.actors.keys()):
+            #with torch.no_grad():
+            #    actions[inter_id] , log_probs[inter_id] = self.actors[inter_id].forward(obs[inter_id])
             if random.random() > self.actors_prob[inter_id]:
                 with torch.no_grad():
-                    actions[inter_id] = self.actors[inter_id].forward(obs[inter_id])
+                    actions[inter_id] , log_probs[inter_id] = self.actors[inter_id].forward(obs[inter_id])
                 #logging.info(f"1,guding,{actions[inter_id]}")
             else:
                 with torch.no_grad():
-                    actions[inter_id] = torch.randn_like(self.actors[inter_id].forward(obs[inter_id]))
+                    act , logp = self.actors[inter_id].forward(obs[inter_id])
+                    actions[inter_id], log_probs[inter_id] = torch.randn_like(act),torch.tensor(-1e10)
                 #logging.info(f"2,suiji,{actions[inter_id]}")
-        return actions
+        return actions , log_probs
     
     async def optimize(self, records):
         tasks = [self.optimize_inter(inter_id, records[inter_id]) for inter_id in self.actors.keys()]
@@ -71,11 +76,98 @@ class World_agent():
             
     async def optimize_inter(self, inter_id, records):
         #pdb.set_trace()
-        await self.optimize_critic(inter_id, records)
-        await self.optimize_actor(inter_id, records)
+        #await self.optimize_critic(inter_id, records)
+        #await self.optimize_actor(inter_id, records)
+        await self.optimize_inone(inter_id, records)
         #pdb.set_trace()
         return True
+    
+    async def optimize_inone(self,inter_id,records):
+        actor = self.actors[inter_id]
+        critic = self.critics[inter_id]
+        actor_optimizer = self.actors_optimizer[inter_id]
+        critic_optimizer = self.critics_optimizer[inter_id]
         
+        def compute_gae(critic, trajectory, gamma=0.99, lam=0.95):
+            with torch.no_grad():
+                state_records = np.array(trajectory['b_state'], dtype=object)
+                values = critic.forward_batch(state_records)
+                state_records = np.array(trajectory['a_state'], dtype=object)[-1:]
+                next_value = critic.forward_batch(state_records).item()
+                
+            rewards = np.array(trajectory["reward"])
+            gae = 0
+            returns = []
+            
+            for step in reversed(range(len(rewards))):
+                if step == len(rewards) - 1:
+                    next_val = next_value
+                else:
+                    next_val = values[step+1].item()
+                delta = rewards[step] + gamma * next_val- values[step].item()
+                gae = delta + gamma * lam  * gae
+                returns.insert(0, gae + values[step].item())
+            return np.array(returns)
+        
+        returns = compute_gae(critic, records, gamma=0.99, lam=0.95)
+        returns = torch.from_numpy(returns).float()
+        logging.info(f"returns:{returns}")
+        
+        with torch.no_grad():
+            state_records = np.array(records['b_state'], dtype=object)
+            values = critic.forward_batch(state_records)
+            advantages = returns - values.flatten()
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        logging.info(f"advantages:{advantages}")
+        
+        old_log_probs = torch.FloatTensor(records["log_prob"])
+        
+        flag = True
+        num_epochs = 4
+        batch_size = 100
+        clip_param = 0.2  # PPO剪切参数
+        max_grad_norm = 1.0
+        
+        if flag:
+            for epoch in range(num_epochs):
+                permutation = torch.randperm(len(records['b_state']))
+                for i in range(0,len(records['b_state']),batch_size):
+                    indices = permutation[i:i+batch_size]
+                    
+                    batch_states = np.array(records['b_state'], dtype=object)[indices]
+                    mu,sigma = actor.get_mu_sigma_batch(batch_states)
+                    batch_actions = np.array(records['action'])[indices]
+                    batch_actions = torch.from_numpy(batch_actions).float()
+                    dist = D.Normal(mu, sigma)
+                    new_log_probs = dist.log_prob(batch_actions).sum(dim=[1,2])
+                    logging.info(f"new_log_probs: {new_log_probs}")
+                    batch_old_log_probs = old_log_probs[indices]
+                    logging.info(f"batch_old_log_probs: {batch_old_log_probs}")
+                    ratio = torch.exp(torch.clamp(new_log_probs - batch_old_log_probs, min=-1e10, max=3))
+                    logging.info(f"ratio: {ratio}")
+                    batch_advantages = advantages[indices]
+                    logging.info(f"batch advantage: {batch_advantages}")
+                    surr1 = ratio * batch_advantages
+                    surr2 = torch.clamp(ratio, min=1 - clip_param, max=1 + clip_param) * batch_advantages
+                    policy_loss = -torch.min(surr1, surr2).mean()
+                    actor_optimizer.zero_grad()
+                    policy_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
+                    #logging.info(f"actor:{actor.mu_head.weight}")
+                    actor_optimizer.step()
+                    logging.info(f"{policy_loss},actor:{actor.mu_head.weight}")
+                    
+                    # 价值函数损失（均方误差）
+                    batch_returns = returns[indices]
+                    logging.info(f"batch returns: {batch_returns}")
+                    value_loss = nn.MSELoss()(critic.forward_batch(np.array(records['b_state'], dtype=object)[indices]).squeeze(), batch_returns)
+                    critic_optimizer.zero_grad()
+                    value_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
+                    critic_optimizer.step()
+                    logging.info(f"{value_loss},critic:{critic.value_head.weight}")
+        return True
+    
     async def optimize_actor(self, inter_id, records):
         """
         使用PPO优化actor模型
@@ -88,6 +180,12 @@ class World_agent():
         actor = self.actors[inter_id]
         critic = self.critics[inter_id]
         actor_optimizer = self.actors_optimizer[inter_id]
+        def compute_gae(rewards, values, next_values, gamma, lam):
+            deltas = rewards + gamma * next_values - values
+            gae = torch.zeros_like(deltas)
+            for t in reversed(range(len(deltas))):
+                gae[t] = deltas[t] + gamma * lam * gae[t + 1] if t + 1 < len(deltas) else deltas[t]
+            return gae
         flag = True# 自定义的
         num_epochs = 4
         batch_size = 100
@@ -104,7 +202,7 @@ class World_agent():
                         indices = permutation[i:i+batch_size]
                         temp_records = np.array(records['b_state'], dtype=object)[indices]
                         #pdb.set_trace()
-                        actions = actor.forward_batch(temp_records)
+                        actions,_ = actor.forward_batch(temp_records)
                         logging.info(f"{actions.flatten()}")
                         #pdb.set_trace()
                         with torch.no_grad():
@@ -120,7 +218,7 @@ class World_agent():
                                             new_recor[key] = recor[key]
                                     new_records.append(new_recor)
                                 #pdb.set_trace()
-                                noisy_actions = actor.forward_batch(new_records)
+                                noisy_actions,_ = actor.forward_batch(new_records)
                                 temp += noisy_actions
                             expected_action = temp/5
                         #pdb.set_trace()
@@ -150,12 +248,12 @@ class World_agent():
                             #value = critic.forward_batch(np.array(records['b_state'], dtype=object)[indices])
                         logging.info(f"value : {value.flatten()}")
                         loss = sum(torch.log(action_prob+1e-8)*value.flatten())
-                        logging.info(f"{loss},actor,{[key for key in actor.output_layer.parameters()]}")
+                        logging.info(f"{loss},actor,{[key for key in actor.mu_head.parameters()]}")
                         actor_optimizer.zero_grad()
                         loss.backward()
                         torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
                         actor_optimizer.step()
-                        logging.info(f"{loss},actor,{[key for key in actor.output_layer.parameters()]}")
+                        logging.info(f"{loss},actor,{[key for key in actor.mu_head.parameters()]}")
         #pdb.set_trace()
         return True
                     
@@ -191,16 +289,16 @@ class World_agent():
                         temp_records = np.array(records['a_state'], dtype=object)[indices]
                         expected_values = target_critic.forward_batch(temp_records)
                     #pdb.set_trace()
-                    expected_values = expected_values + gamma * torch.from_numpy(np.array(records['reward'])[indices]).float().reshape(expected_values.shape)
+                    expected_values = gamma * expected_values + torch.from_numpy(np.array(records['reward'])[indices]).float().reshape(expected_values.shape)
                     expected_values = torch.clamp(expected_values, -199, 199)
                     #logging.info(f"{expected_values.flatten()}")
                     loss = sum((expected_values-values)**2)/batch_size
-                    logging.info(f"{loss.item():.4f},critic,{[key for key in critic.output_layer.parameters()]}")
+                    logging.info(f"{loss.item():.4f},critic,{[key for key in critic.value_head.parameters()]}")
                     critic_optimizer.zero_grad()
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(critic.parameters(), clip_grad_norm)
                     critic_optimizer.step()
-                    logging.info(f"{loss.item():.4f},critic,{[key for key in critic.output_layer.parameters()]}")
+                    logging.info(f"{loss.item():.4f},critic,{[key for key in critic.value_head.parameters()]}")
             target_critic.load_state_dict(critic.state_dict())
             logging.info("Target network updated")
             
