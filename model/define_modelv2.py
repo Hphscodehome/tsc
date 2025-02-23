@@ -73,7 +73,7 @@ class feature_specific_Model_actor(Model):
         self.log_sigma_head = nn.Linear(self.merge_in,2)
         self.apply(self._init_weights)
         
-    def forward(self,obs):
+    def get_mu_sigma(self,obs):
         obs = self.preprocess_obs(obs)
         emb = None
         for key in self.use_func:
@@ -119,6 +119,10 @@ class feature_specific_Model_actor(Model):
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.squeeze(self.log_sigma_head(embedding))
         sigma = torch.exp(log_sigma.clamp(min=-20, max=2))  # 限制sigma范围
+        return mu,sigma
+      
+    def forward(self,obs):
+        mu,sigma = self.get_mu_sigma(obs)
         dist = D.Normal(mu, sigma)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum()  # 计算总对数概率
@@ -156,7 +160,7 @@ class feature_specific_Model_actor(Model):
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
-    def forward_batch(self,obs):
+    def get_mu_sigma_batch(self,obs):
         #pdb.set_trace()
         obs = self.preprocess_batch_obs(obs)
         emb = None
@@ -197,6 +201,10 @@ class feature_specific_Model_actor(Model):
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.squeeze(self.log_sigma_head(embedding))
         sigma = torch.exp(log_sigma.clamp(min=-20, max=2))  # 限制sigma范围
+        return mu,sigma
+    
+    def forward_batch(self,obs):
+        mu,sigma = self.get_mu_sigma_batch(obs)
         dist = D.Normal(mu, sigma)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(dim=[1,2])  # 计算总对数概率
