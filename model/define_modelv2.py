@@ -68,7 +68,6 @@ class feature_specific_Model_actor(Model):
                 self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
                 
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
-        
         self.mu_head = nn.Linear(self.merge_in,2)
         self.log_sigma_head = nn.Linear(self.merge_in,2)
         self.apply(self._init_weights)
@@ -115,10 +114,9 @@ class feature_specific_Model_actor(Model):
         mask = mask.clone().detach().to(self.device).type(torch.float)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.squeeze(self.log_sigma_head(embedding))
-        sigma = torch.exp(log_sigma.clamp(min=-20, max=2))  # 限制sigma范围
+        sigma = torch.exp(log_sigma.clamp(min=0, max=3))  # 限制sigma范围
         return mu,sigma
       
     def forward(self,obs):
@@ -197,10 +195,9 @@ class feature_specific_Model_actor(Model):
         mask = mask.clone().detach().to(self.device).type(torch.float)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.squeeze(self.log_sigma_head(embedding))
-        sigma = torch.exp(log_sigma.clamp(min=-20, max=2))  # 限制sigma范围
+        sigma = torch.exp(log_sigma.clamp(min=0, max=3))  # 限制sigma范围
         return mu,sigma
     
     def forward_batch(self,obs):
