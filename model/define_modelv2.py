@@ -127,6 +127,7 @@ class feature_specific_Model_actor(Model):
         rows, cols = mu.shape
         sigma = torch.exp(log_sigma)[:rows,:cols]  # 限制sigma范围
         #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
+        #logging.info(f"mu,sigma: {mu.shape},{sigma.shape}")
         return mu,sigma
       
     def forward(self,obs):
@@ -209,7 +210,7 @@ class feature_specific_Model_actor(Model):
         batch,rows, cols = mu.shape
         sigma = torch.exp(log_sigma)[:rows, :cols]  # 限制sigma范围
         sigma = sigma.unsqueeze(0).repeat(batch, 1, 1)  # 第一个维度重复 40 次，其他不变
-        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
+        logging.info(f"mu,sigma: {mu.shape},{sigma.shape}")
         return mu,sigma
     
     def forward_batch(self,obs):
@@ -314,7 +315,7 @@ class feature_specific_Model_critic(Model):
         mask = mask.clone().detach().to(self.device).type(torch.float)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        value = torch.clamp(self.value_head(embedding),min=-200.0,max=200.0)
+        value = self.value_head(embedding)
         value = value.mean(dim=1)# (batch*lanes) * emb_length
         return value
     
