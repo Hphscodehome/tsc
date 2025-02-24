@@ -387,6 +387,6 @@ class feature_specific_Model_critic(Model):
         mask = mask.clone().detach().to(self.device).type(torch.float)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
-        value = torch.clamp(self.value_head(embedding),min=-200.0,max=200.0)
+        value = self.value_head(embedding)
         value = value.mean(dim=1)# (batch*lanes) * emb_length
         return value
