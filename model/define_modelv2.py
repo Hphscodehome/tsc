@@ -51,8 +51,10 @@ class feature_specific_Model_actor(Model):
                     nn.Linear(self.lane_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
+                    nn.LayerNorm(11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, self.lane_out)
+                    nn.Linear(11, self.lane_out),
+                    nn.LayerNorm(self.lane_out)
                 )])
             elif 'vehicle' in key:
                 # batch * lanes * length * 2
@@ -60,18 +62,20 @@ class feature_specific_Model_actor(Model):
                     nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
+                    nn.LayerNorm(11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
+                    nn.Linear(11, self.vehicle_out),
+                    nn.LayerNorm(self.vehicle_out)
                 ) for _ in range(3)])  # 三个网络对应Q, K, V
-                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head)])
+                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head),nn.LayerNorm(self.vehicle_out)])
             else:
-                self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
+                self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
                 
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.mu_head = nn.Linear(self.merge_in,2)
-        self.trained_step = 0
         self.log_sigma = torch.nn.Parameter(torch.zeros(20,2))
         self.apply(self._init_weights)
+        self.trained_step = 0
         
         
     def get_mu_sigma(self,obs):
@@ -118,13 +122,11 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
-        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         mu = torch.tanh(mu)
         #mu = mu.clamp(min=-5, max=5)  # 限制mu范围
         rows, cols = mu.shape
-        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         sigma = torch.exp(log_sigma)[:rows,:cols]  # 限制sigma范围
-        logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
+        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         return mu,sigma
       
     def forward(self,obs):
@@ -162,7 +164,6 @@ class feature_specific_Model_actor(Model):
             else:
                 stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
-        
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
@@ -203,14 +204,12 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
-        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         mu = torch.tanh(mu)
         #mu = mu.clamp(min=-5, max=5)  # 限制mu范围
         batch,rows, cols = mu.shape
-        logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
         sigma = torch.exp(log_sigma)[:rows, :cols]  # 限制sigma范围
         sigma = sigma.unsqueeze(0).repeat(batch, 1, 1)  # 第一个维度重复 40 次，其他不变
-        logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
+        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         return mu,sigma
     
     def forward_batch(self,obs):
@@ -254,8 +253,10 @@ class feature_specific_Model_critic(Model):
                     nn.Linear(self.lane_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
+                    nn.LayerNorm(11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, self.lane_out)
+                    nn.Linear(11, self.lane_out),
+                    nn.LayerNorm(self.lane_out)
                 )])
             elif 'vehicle' in key:
                 # batch * lanes * length * 2
@@ -264,15 +265,18 @@ class feature_specific_Model_critic(Model):
                     nn.Linear(self.vehicle_in, 7),
                     nn.LeakyReLU(),
                     nn.Linear(7, 11),
+                    nn.LayerNorm(11),
                     nn.LeakyReLU(),
-                    nn.Linear(11, self.vehicle_out)
+                    nn.Linear(11, self.vehicle_out),
+                    nn.LayerNorm(self.vehicle_out)
                 ) for _ in range(3)])  # 三个网络对应Q, K, V
-                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head)])
+                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head), nn.LayerNorm(self.vehicle_out)])
             else:
-                self.networks[key] = nn.ModuleList([nn.Embedding(self.phase_size, self.phase_out)])
+                self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.value_head = nn.Linear(self.merge_in,1)
         self.apply(self._init_weights)
+        
         self.trained_step = 0
         
     def forward(self,obs):
