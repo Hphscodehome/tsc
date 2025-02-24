@@ -313,9 +313,7 @@ class Intersection():
         elif indicator.wait_time_ascend < 0:
             reward = math.log(-indicator.wait_time_ascend,7)
         else:
-            reward = 0
-        #reward += -0.7*indicator.average_delay
-        #reward += 0.3*indicator.throughput
+            reward = 2
         return reward, indicator
     #endregion
     

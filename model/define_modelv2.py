@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from collections import defaultdict
 import numpy as np
-import pdb
 import torch.distributions as D
 import logging
 #endregion
@@ -70,9 +69,10 @@ class feature_specific_Model_actor(Model):
                 
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.mu_head = nn.Linear(self.merge_in,2)
-        self.log_sigma_head = nn.Linear(self.merge_in,2)
-        self.apply(self._init_weights)
         self.trained_step = 0
+        self.log_sigma = torch.nn.Parameter(torch.zeros(20,2))
+        self.apply(self._init_weights)
+        
         
     def get_mu_sigma(self,obs):
         obs = self.preprocess_obs(obs)
@@ -117,23 +117,18 @@ class feature_specific_Model_actor(Model):
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
-        log_sigma = torch.squeeze(self.log_sigma_head(embedding))
+        log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
-        #mu = torch.tanh(mu)
-        #log_sigma = torch.tanh(log_sigma)
-        mu = mu.clamp(min=-5, max=5)  # 限制mu范围
-        log_sigma = log_sigma.clamp(min=-1, max=3)
+        mu = torch.tanh(mu)
+        #mu = mu.clamp(min=-5, max=5)  # 限制mu范围
+        rows, cols = mu.shape
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
-        sigma = torch.exp(log_sigma)  # 限制sigma范围
+        sigma = torch.exp(log_sigma)[:rows,:cols]  # 限制sigma范围
         logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
-        #mu = mu.clamp(min=-10, max=10)  # 限制mu范围
-        #sigma = torch.exp(log_sigma.clamp(min=-1, max=3))  # 限制sigma范围
-        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         return mu,sigma
       
     def forward(self,obs):
         mu,sigma = self.get_mu_sigma(obs)
-        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         dist = D.Normal(mu, sigma)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum()  # 计算总对数概率
@@ -167,12 +162,11 @@ class feature_specific_Model_actor(Model):
             else:
                 stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
-        #pdb.set_trace()
+        
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
     def get_mu_sigma_batch(self,obs):
-        #pdb.set_trace()
         obs = self.preprocess_batch_obs(obs)
         emb = None
         for key in self.use_func:
@@ -203,26 +197,24 @@ class feature_specific_Model_actor(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
-        #pdb.set_trace()
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
-        log_sigma = torch.squeeze(self.log_sigma_head(embedding))
+        log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
-        #mu = torch.tanh(mu)
-        #log_sigma = torch.tanh(log_sigma)
-        mu = mu.clamp(min=-5, max=5)  # 限制mu范围
-        log_sigma = log_sigma.clamp(min=-1, max=3)
+        mu = torch.tanh(mu)
+        #mu = mu.clamp(min=-5, max=5)  # 限制mu范围
+        batch,rows, cols = mu.shape
         logging.info(f"mu,sigma: {mu[0]},{log_sigma[0]}")
-        sigma = torch.exp(log_sigma)  # 限制sigma范围
+        sigma = torch.exp(log_sigma)[:rows, :cols]  # 限制sigma范围
+        sigma = sigma.unsqueeze(0).repeat(batch, 1, 1)  # 第一个维度重复 40 次，其他不变
         logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         return mu,sigma
     
     def forward_batch(self,obs):
         mu,sigma = self.get_mu_sigma_batch(obs)
-        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
         dist = D.Normal(mu, sigma)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(dim=[1,2])  # 计算总对数概率
@@ -351,12 +343,11 @@ class feature_specific_Model_critic(Model):
             else:
                 stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
-        #pdb.set_trace()
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
     def forward_batch(self,obs):
-        #pdb.set_trace()
+        
         obs = self.preprocess_batch_obs(obs)
         emb = None
         for key in self.use_func:
@@ -387,7 +378,6 @@ class feature_specific_Model_critic(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
-        #pdb.set_trace()
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())

@@ -32,7 +32,6 @@ class Game():
         self.eval_results = defaultdict(list)
         
     def reset(self):
-        
         self.recoder = defaultdict(lambda: defaultdict(lambda: deque(maxlen=self.max_length)))
         self.infos = deque(maxlen=self.max_length)
         self.state = self.world.reset()
@@ -59,7 +58,6 @@ class Game():
             step += 1
         
     def evaluate(self,end=20,round=0):
-        
         self.reset()
         step = 0
         total_reward = defaultdict(lambda: 0)
@@ -74,16 +72,13 @@ class Game():
                 self.eval_writer.add_scalar(f"eval_values_{str(round)}/{inter.id}", eva_values[inter.id], step)
             for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums']:
                 self.eval_writer.add_scalar(f"infos_{str(round)}/{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
-            
             self.state = obs
             step += 1
-            
         for inter in self.world.inters:
             self.eval_results[inter.id].append(total_reward[inter.id])
             self.eval_writer.add_scalar(f"result/{inter.id}", self.eval_results[inter.id][-1], len(self.eval_results[inter.id]))
         
     async def train(self):
-        #pdb.set_trace()
         await self.world_agent.optimize(self.recoder)
         return True
         
@@ -97,10 +92,8 @@ async def main():
         await game.train()
         game.evaluate(end = 500, round = i)
         game.world_agent.save(round=i)
-    # pdb.set_trace()
     logging.info(f"done with: {game.cfg}")
     
 if __name__ == '__main__':
-    #pdb.set_trace()
     asyncio.run(main())
     

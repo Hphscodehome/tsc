@@ -142,12 +142,12 @@ class feature_specific_Model_actor(Model):
             else:
                 stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
-        #pdb.set_trace()
+        
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
     def forward_batch(self,obs):
-        #pdb.set_trace()
+        
         obs = self.preprocess_batch_obs(obs)
         emb = None
         for key in self.use_func:
@@ -178,7 +178,7 @@ class feature_specific_Model_actor(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
-        #pdb.set_trace()
+        
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
         #mask = torch.tensor(mask,dtype=torch.float).to(self.device)
@@ -316,12 +316,12 @@ class feature_specific_Model_critic(Model):
             else:
                 stat = torch.from_numpy(stat).float().to(self.device)
             result[key] = stat
-        #pdb.set_trace()
+        
         result['mask'] = torch.from_numpy(obs[-1]['mask']).to(self.device)
         return result
     
     def forward_batch(self,obs):
-        #pdb.set_trace()
+        
         obs = self.preprocess_batch_obs(obs)
         emb = None
         for key in self.use_func:
@@ -352,7 +352,7 @@ class feature_specific_Model_critic(Model):
             else:
                 emb = torch.cat([emb, embedding], dim=-1)
         # 车道级合并
-        #pdb.set_trace()
+        
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
         #mask = torch.tensor(mask,dtype=torch.float).to(self.device)

@@ -13,7 +13,7 @@ import os
 #endregion
 
 #region my-package
-from model.define_modelv2 import * #feature_specific_Model_actor,feature_specific_Model_critic
+from model.define_modelv2 import * 
 from registry.define_registry import Registry
 from utils.constants import obs_fn
 from utils.paths import get_unique_log_dir
@@ -49,8 +49,8 @@ class World_agent():
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
             
-            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=0.0001)
-            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=0.0001)
+            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=1e-6)
+            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=1e-4)
             self.actors_prob[inter.id] = 0.3
             
     def save(self,round=0):
@@ -82,31 +82,15 @@ class World_agent():
         for inter_id in list(self.actors.keys()):
             with torch.no_grad():
                 actions[inter_id] , log_probs[inter_id] = self.actors[inter_id].forward(obs[inter_id])
-            '''
-            if random.random() > self.actors_prob[inter_id]:
-                with torch.no_grad():
-                    actions[inter_id] , log_probs[inter_id] = self.actors[inter_id].forward(obs[inter_id])
-                #logging.info(f"1,guding,{actions[inter_id]}")
-            else:
-                with torch.no_grad():
-                    act , logp = self.actors[inter_id].forward(obs[inter_id])
-                    actions[inter_id], log_probs[inter_id] = torch.randn_like(act),torch.tensor(-1e10)
-                #logging.info(f"2,suiji,{actions[inter_id]}")
-            '''
         return actions , log_probs
     
     async def optimize(self, records):
         tasks = [self.optimize_inter(inter_id, records[inter_id]) for inter_id in self.actors.keys()]
         await asyncio.gather(*tasks)
-        #pdb.set_trace()
         return True
             
     async def optimize_inter(self, inter_id, records):
-        #pdb.set_trace()
-        #await self.optimize_critic(inter_id, records)
-        #await self.optimize_actor(inter_id, records)
         await self.optimize_inone(inter_id, records)
-        #pdb.set_trace()
         return True
     
     async def optimize_inone(self,inter_id,records):
@@ -150,8 +134,8 @@ class World_agent():
         old_log_probs = torch.FloatTensor(records["log_prob"])
         
         flag = True
-        num_epochs = 10
-        batch_size = 100
+        num_epochs = 3
+        batch_size = 500
         clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
         
@@ -182,15 +166,14 @@ class World_agent():
                     actor_optimizer.zero_grad()
                     policy_loss.backward()
                     torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
-                    #logging.info(f"actor:{actor.mu_head.weight}")
+                    logging.info(f"actor:{actor.mu_head.weight}")
                     actor_optimizer.step()
                     logging.info(f"{policy_loss},actor:{actor.mu_head.weight.flatten()[:10]}")
                     actor.trained_step += 1
                     actor.writer.add_scalar("Loss/train", policy_loss.item(), actor.trained_step)
-                    
                     # 价值函数损失（均方误差）
                     batch_returns = returns[indices]
-                    logging.info(f"batch returns: {batch_returns}")
+                    logging.info(f"batch returns: {batch_returns.flatten()[:10]}")
                     value_loss = nn.MSELoss()(critic.forward_batch(np.array(records['b_state'], dtype=object)[indices]).squeeze(), batch_returns)
                     critic_optimizer.zero_grad()
                     value_loss.backward()
@@ -199,7 +182,6 @@ class World_agent():
                     critic.trained_step += 1
                     critic.writer.add_scalar("Loss/train", value_loss.item(), critic.trained_step)
                     logging.info(f"{value_loss},critic:{critic.value_head.weight.flatten()[:10]}")
-                    
         return True
     
     async def optimize_actor(self, inter_id, records):
@@ -210,7 +192,6 @@ class World_agent():
         #计算该状态下对应动作出现的概率。
         #计算该状态下对应动作的优势。
         #求导优化
-        #pdb.set_trace()
         actor = self.actors[inter_id]
         critic = self.critics[inter_id]
         actor_optimizer = self.actors_optimizer[inter_id]
@@ -235,10 +216,10 @@ class World_agent():
                     with torch.autograd.detect_anomaly():
                         indices = permutation[i:i+batch_size]
                         temp_records = np.array(records['b_state'], dtype=object)[indices]
-                        #pdb.set_trace()
+                        
                         actions,_ = actor.forward_batch(temp_records)
                         logging.info(f"{actions.flatten()}")
-                        #pdb.set_trace()
+                        
                         with torch.no_grad():
                             temp = 0
                             for _ in range(5):
@@ -251,11 +232,11 @@ class World_agent():
                                         else:
                                             new_recor[key] = recor[key]
                                     new_records.append(new_recor)
-                                #pdb.set_trace()
+                                
                                 noisy_actions,_ = actor.forward_batch(new_records)
                                 temp += noisy_actions
                             expected_action = temp/5
-                        #pdb.set_trace()
+                        
                         logging.info(f"{expected_action.flatten()}")
                         batch_size, num_samples, num_features = actions.shape  # 这里 num_features 应该是 2
                         actions_l1 = F.softmax(actions[..., 0], dim=1)  # dim=1 因为我们要在第二个维度上应用 softmax
@@ -288,7 +269,7 @@ class World_agent():
                         torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
                         actor_optimizer.step()
                         logging.info(f"{loss},actor,{[key for key in actor.mu_head.parameters()]}")
-        #pdb.set_trace()
+        
         return True
                     
     async def optimize_critic(self, inter_id, records):
@@ -299,7 +280,7 @@ class World_agent():
         #计算该状态下对应状态的状态价值
         #计算下个状态的状态价值
         #根据reward调整状态价值函数
-        #pdb.set_trace()
+        
         critic = self.critics[inter_id]  # 在线网络
         target_critic = self.target_critics[inter_id]  # 目标网络
         critic_optimizer = self.critics_optimizer[inter_id]
@@ -310,19 +291,19 @@ class World_agent():
         clip_grad_norm = 1.0  # 梯度裁剪
         if flag:
             for epoch in range(num_epochs):
-                #pdb.set_trace()
+                
                 permutation = torch.randperm(len(records['b_state']))
                 for i in range(0,len(records['b_state']), batch_size):
                     #logging.info(f"i:{i}")
                     indices = permutation[i:i+batch_size]
                     temp_records = np.array(records['b_state'], dtype=object)[indices]
-                    #pdb.set_trace()
+                    
                     values = critic.forward_batch(temp_records)
                     #logging.info(f"{values.flatten()}")
                     with torch.no_grad():
                         temp_records = np.array(records['a_state'], dtype=object)[indices]
                         expected_values = target_critic.forward_batch(temp_records)
-                    #pdb.set_trace()
+                    
                     expected_values = gamma * expected_values + torch.from_numpy(np.array(records['reward'])[indices]).float().reshape(expected_values.shape)
                     expected_values = torch.clamp(expected_values, -199, 199)
                     #logging.info(f"{expected_values.flatten()}")
