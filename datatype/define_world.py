@@ -22,16 +22,10 @@ class World(gym.Env):
         self.net_file = os.path.join(os.path.dirname(self.sumocfg),root.find('./input/net-file').get('value'))
         self.route_file = os.path.join(os.path.dirname(self.sumocfg),root.find('./input/route-files').get('value'))
         netconfig = net_2_struct(self.net_file)
-        
         self.lane_2_shape=netconfig.lane_2_shape
         self.intersection_2_updownstream=netconfig.intersection_2_updownstream
         self.lane_2_updownstream=netconfig.lane_2_updownstream
         self.intersection_2_position=netconfig.intersection_2_position
-        '''
-        dict_net = netconfig.model_dump()
-        for keyr in dict_net.keys():
-            logging.info(f"{keyr},{dict_net[keyr]}")
-        '''
         self.eng = traci
         self.cmd = [sumolib.checkBinary('sumo'), '-c', self.sumocfg]
         self.eng.start(self.cmd)
@@ -39,7 +33,7 @@ class World(gym.Env):
         self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
         self.last_step_waittime = 0.0
-        self.action_interval = 10
+        self.action_interval = 5
         self.reset()
     
     def close(self):
@@ -57,7 +51,6 @@ class World(gym.Env):
         self.last_step_waittime = 0.0
         self.n_agent = len(self.inters)
         state = self._get_observations()
-        
         return state
     
     def step(self, action):
@@ -126,6 +119,7 @@ class World(gym.Env):
         for veh in total_vehicles:
             thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
         wait_time_ascend = thisstep_total - self.last_step_waittime
+        
         self.last_step_vehicles = vehicles
         self.last_step_waittime = thisstep_total
         

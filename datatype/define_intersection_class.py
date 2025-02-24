@@ -31,8 +31,6 @@ class Intersection():
         self.vehicle_gap = 7.5
         self.max_vehicle_num = 40
         self.vehicles = defaultdict(lambda : Vehicle())
-        self.last_step_vehicles = []
-        self.last_step_waittime = 0.0
         self.all_obs_fn = {
             "lane_average_speed": self.get_lane_average_speed,
             "lane_vehicle_numbers": self.get_lane_vehicle_numbers,
@@ -44,9 +42,10 @@ class Intersection():
         self.obs_fn = ['vehicle_map','current_phase','lane_waiting_time','lane_halting_numbers','lane_vehicle_numbers','lane_average_speed']
         phase = self.get_current_phase()
         phase_str = phase.phase_str
-        #logging.info(f"{self.lanes_conflict_map}")
         self.eng.trafficlight.setRedYellowGreenState(self.id,'r'*len(phase_str))
-        #logging.info(f"origin:{'r'*len(phase_str)}")
+        self.last_step_vehicles = []
+        self.last_step_waittime = 0.0
+        self.last_step_watinums = 0
         
     #region 设置相位 
     def get_phase(self,action):
@@ -100,7 +99,6 @@ class Intersection():
         self.eng.trafficlight.setRedYellowGreenState(self.id,self.set_phase)
         
     def step(self,action):
-        # action
         self.get_phase(action)
     #endregion
     
@@ -136,21 +134,21 @@ class Intersection():
         return lane_attr_value
 
     def get_lane_vehicle_numbers(self):
-        # 车辆数量，并非waiting，车辆数量越多，说明路占用率越高。
+        # 在这个车道上的车辆的数量，不管动或者静止。
         lane_attr_value = defaultdict(float)
         for lane in self.upstream_lanes+self.downstream_lanes:
             lane_attr_value[lane] = self.eng.lane.getLastStepVehicleNumber(lane)
         return lane_attr_value
     
     def get_lane_halting_numbers(self):
-        # 停止车辆数量，停车就说明在等红绿灯
+        # 只算静止车辆的数量，不算开始移动的，因为当排队启动以后，车辆不是同时启动的。
         lane_attr_value = defaultdict(float)
         for lane in self.upstream_lanes+self.downstream_lanes:
             lane_attr_value[lane] = self.eng.lane.getLastStepHaltingNumber(lane)
         return lane_attr_value
     
     def get_lane_waiting_time(self):
-        # 所有车辆等红灯的等待时间
+        # 当前车道所有静止车辆的等待时间并不算开始移动的了
         lane_attr_value = defaultdict(float)
         for lane in self.upstream_lanes+self.downstream_lanes:
             lane_attr_value[lane] = self.eng.lane.getWaitingTime(lane)
@@ -169,13 +167,6 @@ class Intersection():
     
     #region 信号灯
     def get_current_phase(self):
-        # 返回相位字符串、持续时间、索引index
-        '''
-        trafficlight_attr_value = {}
-        trafficlight_attr_value['phase_str'] = self.eng.trafficlight.getRedYellowGreenState(self.id)
-        trafficlight_attr_value['phase_id'] = self.eng.trafficlight.getPhase(self.id)
-        trafficlight_attr_value['phase_duration'] = self.eng.trafficlight.getPhaseDuration(self.id)
-        '''
         trafficlight_attr_value = Phase(phase_id = self.eng.trafficlight.getPhase(self.id),
               phase_str = self.eng.trafficlight.getRedYellowGreenState(self.id).lower(),
               phase_duration = self.eng.trafficlight.getPhaseDuration(self.id))
@@ -219,7 +210,6 @@ class Intersection():
     
     #region observe
     def get_observation(self):
-        #link 级别的观测结果
         func_state = defaultdict(list)
         func_state_final = defaultdict(lambda: np.array([]))
         for f in self.obs_fn:
@@ -242,7 +232,7 @@ class Intersection():
     #region 更新
     def renew(self):
         vehicles = []
-        for lane in self.upstream_lanes+self.downstream_lanes:
+        for lane in self.upstream_lanes:
             vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
         for veh in vehicles:
             if self.eng.vehicle.getWaitingTime(veh) != 0:
@@ -258,14 +248,13 @@ class Intersection():
     
     #region 奖励
     def get_all_info(self):
-        # 上个时间段离开路网的车辆数量 辆数
-        # 上个时间段离开路网的车辆通过路网的平均停车等待时间 秒每辆
-        # 上个时间段内离开路网的车辆数量与路网内等待的车辆数量
-        # 上个时间段内等待时间的增加程度
+        
         vehicles = []
-        for lane in self.upstream_lanes+self.downstream_lanes:
-            vehicles.extend(list(self.eng.lane.getLastStepVehicleIDs(lane)))
-        laststep_vehicles = self.last_step_vehicles
+        for lane in self.upstream_lanes:
+            lane_v = list(self.eng.lane.getLastStepVehicleIDs(lane))
+            vehicles.extend(lane_v)
+            #for vv in lane_v:
+            #    logging.info(f"{lane},{self.vehicles[vv].AccumulatedWaitingTime}")
         total_vehicles = list(set(vehicles) | set(self.last_step_vehicles))
         
         getin_vehicles = list(set(vehicles) - set(self.last_step_vehicles))
@@ -279,41 +268,65 @@ class Intersection():
             average_delay = total_delay/len(leaved_vehicles)
         else:
             average_delay = 0
+        
         # 吞吐量，是当前动作的结果
         throughput = len(leaved_vehicles)
+        
         # 车辆等待时间的增长情况是当前动作的结果
         thisstep_total = 0
         for veh in total_vehicles:
             thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
         wait_time_ascend = thisstep_total - self.last_step_waittime
-        total_wait_nums = 0
-        for lane in self.upstream_lanes+self.downstream_lanes:
-            total_wait_nums += self.eng.lane.getLastStepHaltingNumber(lane)
         
+        
+        total_wait_nums = 0
+        for lane in self.upstream_lanes:
+            lane_v = list(self.eng.lane.getLastStepVehicleIDs(lane))
+            for veh in lane_v:
+                if self.vehicles[veh].AccumulatedWaitingTime != 0:
+                    total_wait_nums += 1
+        waitnums_asc = total_wait_nums - self.last_step_watinums
+        
+        last_step_watinums = self.last_step_watinums
+        
+        #logging.info(f"{self.last_step_vehicles},{self.last_step_waittime},{self.last_step_watinums}")
         self.last_step_vehicles = vehicles
         self.last_step_waittime = thisstep_total
+        self.last_step_watinums = total_wait_nums
+        
         return Indicators(total_vehicles = len(total_vehicles),
                           wait_time_ascend = wait_time_ascend,
                           throughput = throughput,
                           average_delay = average_delay,
-                          total_wait_nums = total_wait_nums)
+                          total_wait_nums = last_step_watinums,
+                          waitnums_asc = waitnums_asc)
     #endregion
     
     
     #region reward
     def get_reward(self):
         indicator = self.get_all_info()
-        reward = 0
-        if indicator.wait_time_ascend > 0:
-            if indicator.throughput == 0:
+        reward = 0# 等车数量增加，等车时间增加，但是有通行车辆
+        reward = (- indicator.waitnums_asc + indicator.throughput)
+        
+        '''
+        if indicator.throughput > 0:
+            reward = 2
+        else:
+            if indicator.wait_time_ascend > 0:
                 reward = -math.log(indicator.wait_time_ascend,7)
             else:
-                # 通行比例大则奖励大
-                reward = - math.log(indicator.wait_time_ascend,7) * (1 - (indicator.throughput / indicator.total_vehicles))
+                reward = 0
+        if indicator.wait_time_ascend > 0:
+            if indicator.throughput == 0:
+                reward = -math.log(indicator.wait_time_ascend,7) - indicator.total_wait_nums
+            else:
+                reward = - math.log(indicator.wait_time_ascend,7) - indicator.total_wait_nums + indicator.throughput
         elif indicator.wait_time_ascend < 0:
             reward = math.log(-indicator.wait_time_ascend,7)
         else:
-            reward = 2
+            reward = 2 - indicator.total_wait_nums
+        '''
         return reward, indicator
     #endregion
     

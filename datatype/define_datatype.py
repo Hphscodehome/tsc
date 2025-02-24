@@ -23,6 +23,7 @@ class Indicators(BaseModel):
     wait_time_ascend: float = 0.0
     total_vehicles: int = 0
     total_wait_nums: int = 0
+    waitnums_asc: int = 0
 
 if __name__ == '__main__':
     # 测试 Vehicle 模型
