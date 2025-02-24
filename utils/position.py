@@ -56,6 +56,6 @@ def segments_intersect(A, B, C, D):
 
 if __name__ == '__main__':
     line_A = [(0,0),(2,2)]
-    line_B = [(0.1,0.1),(0,2)]
+    line_B = [(0,0),(0,2)]
     print(judge_cross(line_A,line_B))
 
