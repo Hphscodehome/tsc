@@ -45,15 +45,15 @@ class Game():
             obs, rewards, dones, infos = self.world.step(actions)
             for inter in self.world.inters:
                 self.recoder[inter.id]['b_state'].append(self.state[inter.id])
-                self.train_writer.add_scalar(f"reward_{str(epoch)}/{inter.id}", rewards[inter.id], step)
                 self.recoder[inter.id]['reward'].append(rewards[inter.id])
                 self.recoder[inter.id]['log_prob'].append(log_probs[inter.id])
                 self.recoder[inter.id]['action'].append(actions[inter.id])
                 self.recoder[inter.id]['a_state'].append(obs[inter.id])
                 self.recoder[inter.id]['done'].append(dones[inter.id])
+                self.train_writer.add_scalar(f"reward_{str(epoch)}_{inter.id}", rewards[inter.id], step)
             self.infos.append(infos)
-            for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums']:
-                self.train_writer.add_scalar(f"infos_{str(epoch)}/{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
+            for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums','waitnums_asc']:
+                self.train_writer.add_scalar(f"infos_{str(epoch)}_{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
             self.state = obs
             step += 1
         
@@ -66,12 +66,12 @@ class Game():
             eva_values = self.world_agent.eval_state(self.state)
             obs, rewards, dones, infos = self.world.step(actions)
             for inter in self.world.inters:
-                total_reward[inter.id] += rewards[inter.id]
+                total_reward[inter.id] += 0.99*rewards[inter.id]
                 self.eval_writer.add_scalar(f"reward_{str(round)}/{inter.id}", rewards[inter.id], step)
                 self.eval_writer.add_scalar(f"total_reward_{str(round)}/{inter.id}", total_reward[inter.id], step)
                 self.eval_writer.add_scalar(f"eval_values_{str(round)}/{inter.id}", eva_values[inter.id], step)
-            for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums']:
-                self.eval_writer.add_scalar(f"infos_{str(round)}/{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
+            for key in ['throughput','average_delay','wait_time_ascend','total_vehicles','total_wait_nums','waitnums_asc']:
+                self.eval_writer.add_scalar(f"infos_{str(round)}_{inter.id}/{key}", infos[inter.id].model_dump()[key], step)
             self.state = obs
             step += 1
         for inter in self.world.inters:
@@ -87,8 +87,9 @@ async def main():
     sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
     game = Game(sumocfg=sumocfg)
     for i in range(10):
-        game.play(end= 1000, epoch= i)
+        game.play(end= 2000, epoch= i)
         logging.info(game.infos)
+        #break
         await game.train()
         game.evaluate(end = 500, round = i)
         game.world_agent.save(round=i)
