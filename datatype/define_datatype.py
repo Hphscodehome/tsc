@@ -18,12 +18,13 @@ class Vehicle(BaseModel):
     AccumulatedWaitingTime: float = 0.0
     
 class Indicators(BaseModel):
-    throughput: int = 0
-    average_delay: float = 0.0
-    wait_time_ascend: float = 0.0
-    total_vehicles: int = 0
-    total_wait_nums: int = 0
-    waitnums_asc: int = 0
+    throughput: int = 0 # 通过交叉口的车辆数量
+    average_delay: float = 0.0 # 已通过车辆的平均延迟
+    wait_time_ascend: float = 0.0 # 等待时间的增量
+    total_vehicles: int = 0 # 路网上的总车辆数
+    total_wait_nums: int = 0 # 路网上总的停车数量
+    waitnums_asc: int = 0 # 路网上停车数量的增量
+    vehicles_dec: int = 0 # 路网上车辆的增量
 
 if __name__ == '__main__':
     # 测试 Vehicle 模型
