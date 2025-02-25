@@ -39,9 +39,6 @@ class Intersection():
             "current_phase": self.get_current_phase
         }
         self.obs_fn = ['vehicle_map','current_phase','lane_waiting_time','lane_halting_numbers','lane_vehicle_numbers','lane_average_speed']
-        #phase = self.get_current_phase()
-        #phase_str = phase.phase_str
-        #self.eng.trafficlight.setRedYellowGreenState(self.id,'r'*len(phase_str))
         self.vehicles = defaultdict(lambda : Vehicle())
         self.last_step_vehicles = []
         self.last_step_waittime = 0.0
@@ -49,6 +46,11 @@ class Intersection():
         self.leaved_vehicles = 0
         self.leaved_delay = 0
         
+    def set_reset_phase(self):
+        phase = self.get_current_phase()
+        phase_str = phase.phase_str
+        self.eng.trafficlight.setRedYellowGreenState(self.id,'r'*len(phase_str))
+    
     #region 设置相位 
     def get_phase(self,action):
         # action lanes*2
