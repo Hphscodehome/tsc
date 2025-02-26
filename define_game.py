@@ -7,6 +7,7 @@ import asyncio
 import pdb
 from torch.utils.tensorboard import SummaryWriter
 import os,random
+import numpy as np
 #endregion
 
 #region my-package
@@ -34,7 +35,10 @@ class Game():
         self.state = self.world.reset()
     
     def run_single_trajectory(self, seed, end, epoch):
+        logging.info(f"random seed: {seed}")
         torch.manual_seed(seed)  # 确保每个进程的随机性不同
+        random.seed(seed)
+        np.random.seed(seed)
         recoder = defaultdict(lambda: defaultdict(lambda: deque(maxlen=self.max_length)))
         infos = deque(maxlen=self.max_length)
         state = self.world.reset()
@@ -115,11 +119,11 @@ class Game():
             self.eval_results[inter.id].append(total_reward[inter.id])
             self.eval_writer.add_scalar(f"result/{inter.id}", self.eval_results[inter.id][-1], len(self.eval_results[inter.id]))
             
-    async def train(self,all_recoder):
-        await self.world_agent.optimize(all_recoder)
+    def train(self,all_recoder):
+        self.world_agent.optimize(all_recoder)
         return True
         
-async def main():
+def main():
     logging.basicConfig(
         level=logging.INFO,  # 设置日志级别
         format='%(asctime)s - %(levelname)s - %(message)s',  # 日志格式
@@ -128,20 +132,20 @@ async def main():
         ]
     )
     sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
-    game = Game(sumocfg=sumocfg,train=True,num_envs=10)
+    game = Game(sumocfg=sumocfg,train=True,num_envs=10)#env=10
     best_reward = float('-inf')
     patience = 10
     patience_counter = 0
     for i in range(500):
         all_recoder , all_info = game.play(end = 1000, epoch = i)
         logging.info(all_info)
-        await game.train(all_recoder)
+        game.train(all_recoder)
         game.evaluate(end = 500, round = i)
         total_reward = sum(game.eval_results[inter.id][-1] for inter in game.world.inters)
         if total_reward > best_reward:
             best_reward = total_reward
             patience_counter = 0
-            game.world_agent.save(round=i,exp=1)
+            game.world_agent.save(round=i,exp=4)
         else:
             patience_counter += 1
         if patience_counter >= patience:
@@ -150,5 +154,5 @@ async def main():
     logging.info(f"done with: {game.cfg}")
     
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
     

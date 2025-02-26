@@ -311,30 +311,40 @@ class Intersection():
         # 当前动作导致多少车辆通过交叉口
         throughput = len(leaved_vehicles)
         
+        '''
         # 当前动作导致车辆等待时间的增长情况
         thisstep_total = 0
         for veh in vehicles:
             thisstep_total += self.vehicles[veh].AccumulatedWaitingTime
         wait_time_ascend = thisstep_total - self.last_step_waittime
+        '''
+        total = 0.0
+        for key in self.vehicles.keys():
+            total += self.vehicles[key].AccumulatedWaitingTime
+        wait_time_ascend = total - self.last_step_waittime
+        
+        average_delay = wait_time_ascend/(len(self.vehicles.keys())+1)
         
         # 当前动作导致等车数量的增长情况
         total_wait_nums = 0
         for lane in self.upstream_lanes:
+            #total_wait_nums += self.eng.lane.getLastStepHaltingNumber(lane)
             total_wait_nums += self.eng.lane.getLastStepHaltingNumber(lane)
         waitnums_asc = total_wait_nums - self.last_step_watinums
         last_step_watinums = self.last_step_watinums
         
-        # 
-
         self.last_step_vehicles = vehicles
-        self.last_step_waittime = thisstep_total
+        self.last_step_waittime = total
         self.last_step_watinums = total_wait_nums
+        
+        
+        
         
         return Indicators(total_vehicles = len(vehicles),
                           wait_time_ascend = wait_time_ascend,
                           throughput = throughput,
                           average_delay = average_delay,
-                          total_wait_nums = last_step_watinums,
+                          total_wait_nums = self.last_step_watinums,
                           waitnums_asc = waitnums_asc,
                           vehicles_dec = vehicles_dec)
     #endregion
@@ -343,10 +353,8 @@ class Intersection():
     #region reward
     def get_reward(self):
         indicator = self.get_all_info()
-        #reward = ( -indicator.waitnums_asc + indicator.throughput)/(indicator.total_vehicles+1)  
-        reward = - indicator.total_wait_nums/(indicator.total_vehicles+1)
-        # indicator.throughput - 1 if indicator.total_wait_nums > 0 else 0.01
-        #- indicator.total_wait_nums/(indicator.total_vehicles+1)
+        #reward = -indicator.total_vehicles/(len(self.vehicles.keys())+1)
+        reward = -indicator.total_wait_nums/(len(self.vehicles.keys())+1)*1.05 if self.cahnge_phase else -indicator.total_wait_nums/(len(self.vehicles.keys())+1)
         return reward, indicator
     #endregion
     

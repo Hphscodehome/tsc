@@ -9,6 +9,8 @@ import asyncio
 import numpy as np
 import random
 import os
+import multiprocessing as mp
+from copy import deepcopy
 #endregion
 
 #region my-package
@@ -48,9 +50,9 @@ class World_agent():
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
             
-            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=1e-4)
-            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=1e-2)
-            self.actors_prob[inter.id] = 0.7
+            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=1e-3)#学习率
+            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=1e-2)#学习率
+            self.actors_prob[inter.id] = 0.4# 学习率
             
     def save(self,round=0,exp=0):
         for inter_id in list(self.actors.keys()):
@@ -89,6 +91,9 @@ class World_agent():
         actions = defaultdict(lambda: torch.tensor([]))
         log_probs = {}
         for inter_id in list(self.actors.keys()):
+            with torch.no_grad():
+                actions[inter_id] , log_probs[inter_id] = self.actors[inter_id].forward(obs[inter_id])
+            '''
             if random.random() > self.actors_prob[inter_id]:
                 with torch.no_grad():
                     actions[inter_id] , log_probs[inter_id] = self.actors[inter_id].forward(obs[inter_id])
@@ -99,22 +104,23 @@ class World_agent():
                     actions[inter_id] = torch.randn_like(mu)
                     log_prob = dist.log_prob(actions[inter_id]).sum()
                     log_probs[inter_id] = log_prob
+            '''
         #logging.info(f"actions:{actions},log:{log_probs}")
         return actions , log_probs
     
-    async def optimize(self, records):
+    def optimize(self, records):
         all_dict = {}
         for inter_id in self.actors.keys():
             all_dict[inter_id] = [recoder[inter_id] for recoder in records ]
-        tasks = [self.optimize_inter(inter_id, all_dict[inter_id]) for inter_id in self.actors.keys()]
-        await asyncio.gather(*tasks)
+        for inter_id in self.actors.keys():
+            self.optimize_inter(inter_id, all_dict[inter_id])
         return True
             
-    async def optimize_inter(self, inter_id, records):
-        await self.optimize_inone(inter_id, records)
+    def optimize_inter(self, inter_id, records):
+        self.optimize_inone(inter_id, records)
         return True
     
-    async def optimize_inone(self,inter_id,trecords):
+    def optimize_inone(self,inter_id,trecords):
         actor = self.actors[inter_id]
         critic = self.critics[inter_id]
         actor_optimizer = self.actors_optimizer[inter_id]
@@ -148,7 +154,7 @@ class World_agent():
     
         for i, records in enumerate(trecords):
             # 计算GAE并获取returns
-            returns = compute_gae(critic, records, gamma=1.0, lam=0.95)
+            returns = compute_gae(critic, records, gamma=0.99, lam=0.95)
             returns = torch.from_numpy(returns).float()
             logging.info(f"Trajectory {i} returns: {returns.flatten()[:10]}")
             all_returns.append(returns)
@@ -182,7 +188,7 @@ class World_agent():
         flag = True
         num_epochs = 10
         batch_size = len(records['b_state'])//10
-        logging.info(f"lenght, batch_size: {len(records['b_state'])}, {batch_size}")
+        logging.info(f"length, batch_size: {len(records['b_state'])}, {batch_size}")
         clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
         entropy_coef = 0.01  # 熵系数，建议根据任务调整
@@ -216,7 +222,7 @@ class World_agent():
                     
                     actor_optimizer.zero_grad()
                     policy_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
+                    #torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
                     actor_optimizer.step()
                     logging.info(f"{policy_loss.item()}, actor: {actor.mu_head.weight.flatten()[:10]}")
                     actor.trained_step += 1
@@ -230,7 +236,7 @@ class World_agent():
                     value_loss = nn.MSELoss()(evv, batch_returns)
                     critic_optimizer.zero_grad()
                     value_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(critic.parameters(), max_grad_norm)
+                    #torch.nn.utils.clip_grad_norm_(critic.parameters(), max_grad_norm)
                     critic_optimizer.step()
                     critic.trained_step += 1
                     critic.writer.add_scalar("critic_Loss/train", value_loss.item(), critic.trained_step)
