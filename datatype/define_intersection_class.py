@@ -346,7 +346,7 @@ class Intersection():
     #region reward
     def get_reward(self):
         indicator = self.get_all_info()
-        reward = - indicator.waitnums_asc -1 if self.cahnge_phase else - indicator.waitnums_asc
+        reward = - indicator.waitnums_asc/(indicator.total_wait_nums+1)*10 -1 if self.cahnge_phase else - indicator.waitnums_asc/(indicator.total_wait_nums+1)*10
         return reward, indicator
     #endregion
     
