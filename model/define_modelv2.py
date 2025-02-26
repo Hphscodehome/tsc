@@ -67,9 +67,9 @@ class feature_specific_Model_actor(Model):
                     nn.Linear(11, self.vehicle_out),
                     nn.LayerNorm(self.vehicle_out)
                 ) for _ in range(3)])  # 三个网络对应Q, K, V
-                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head),nn.LayerNorm(self.vehicle_out)])
+                self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head), nn.LayerNorm(self.vehicle_out)])
             else:
-                self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
+                self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out), nn.LayerNorm(self.phase_out))])
         self.join = nn.Linear(self.merge_in, self.merge_in)
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.mu_head = nn.Linear(self.merge_in,2)
