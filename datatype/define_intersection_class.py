@@ -346,47 +346,7 @@ class Intersection():
     #region reward
     def get_reward(self):
         indicator = self.get_all_info()
-        #if indicator.waitnums_asc > 0:
-        #    reward = -5 * indicator.waitnums_asc
-        #else:
-        #    reward = - indicator.waitnums_asc
-        #reward = - indicator.waitnums_asc
-        #reward = - indicator.total_wait_nums
-        #reward = - indicator.wait_time_ascend/10
-        reward = - indicator.waitnums_asc -1 if self.cahnge_phase else - indicator.waitnums_asc
-        # - indicator.wait_time_ascend/10
-        #-indicator.waitnums_asc
-        #if indicator.wait_time_ascend > 0:
-        #    reward = - math.log(indicator.wait_time_ascend+1,2)
-        #elif indicator.wait_time_ascend == 0:
-        #    reward = 1
-        #else:
-        #    reward = math.log(-indicator.wait_time_ascend+1,2)
-        '''
-        if indicator.wait_time_ascend > 0:
-            reward = - indicator.waitnums_asc - math.log(indicator.wait_time_ascend+1,4)
-        elif indicator.wait_time_ascend == 0:
-            reward = - indicator.waitnums_asc
-        else:
-            reward = - indicator.waitnums_asc + math.log(-indicator.wait_time_ascend+1,4)
-        
-        if indicator.throughput > 0:
-            reward = 2
-        else:
-            if indicator.wait_time_ascend > 0:
-                reward = -math.log(indicator.wait_time_ascend,7)
-            else:
-                reward = 0
-        if indicator.wait_time_ascend > 0:
-            if indicator.throughput == 0:
-                reward = -math.log(indicator.wait_time_ascend,7) - indicator.total_wait_nums
-            else:
-                reward = - math.log(indicator.wait_time_ascend,7) - indicator.total_wait_nums + indicator.throughput
-        elif indicator.wait_time_ascend < 0:
-            reward = math.log(-indicator.wait_time_ascend,7)
-        else:
-            reward = 2 - indicator.total_wait_nums
-        '''
+        reward = - indicator.waitnums_asc/(indicator.total_wait_nums+1)*5 -1 if self.cahnge_phase else - indicator.waitnums_asc/(indicator.total_wait_nums+1)*5
         return reward, indicator
     #endregion
     
