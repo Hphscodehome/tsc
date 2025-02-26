@@ -122,12 +122,9 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
-        mu = torch.tanh(mu)
-        #mu = mu.clamp(min=-5, max=5)  # 限制mu范围
+        mu = mu.clamp(min=-10, max=10)  # 限制mu范围
         rows, cols = mu.shape
         sigma = torch.exp(log_sigma)[:rows,:cols]  # 限制sigma范围
-        #logging.info(f"mu,sigma: {mu[0]},{sigma[0]}")
-        #logging.info(f"mu,sigma: {mu.shape},{sigma.shape}")
         return mu,sigma
       
     def forward(self,obs):
@@ -205,12 +202,12 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
-        mu = torch.tanh(mu)
-        #mu = mu.clamp(min=-5, max=5)  # 限制mu范围
-        batch,rows, cols = mu.shape
+        logging.info(f"mu,sigma:  {mu[0].flatten()[:10]}")
+        mu = mu.clamp(min=-10, max=10)  # 限制mu范围
+        batch, rows, cols = mu.shape
         sigma = torch.exp(log_sigma)[:rows, :cols]  # 限制sigma范围
         sigma = sigma.unsqueeze(0).repeat(batch, 1, 1)  # 第一个维度重复 40 次，其他不变
-        logging.info(f"mu,sigma: {mu.shape},{sigma.shape}")
+        logging.info(f"mu,sigma:  {mu[0].flatten()[:10]},{sigma[0].flatten()[:10]}")
         return mu,sigma
     
     def forward_batch(self,obs):
