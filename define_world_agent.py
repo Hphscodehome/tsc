@@ -50,7 +50,7 @@ class World_agent():
             
             self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=1e-4)
             self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=1e-2)
-            self.actors_prob[inter.id] = 0.6
+            self.actors_prob[inter.id] = 0.7
             
     def save(self,round=0,exp=0):
         for inter_id in list(self.actors.keys()):
@@ -58,7 +58,7 @@ class World_agent():
             actor = self.actors[inter_id]
             torch.save(critic.state_dict(), f'./pths/exp_{str(exp)}_{inter_id}_critic_round{str(round)}_model_weights.pth')
             torch.save(actor.state_dict(), f'./pths/exp_{str(exp)}_{inter_id}_actor_round{str(round)}_model_weights.pth')
-            self.actors_prob[inter_id] = self.actors_prob[inter_id]*0.8
+            self.actors_prob[inter_id] = self.actors_prob[inter_id]*0.7
             logging.info(f"train coeff: {self.actors_prob[inter_id]}")
             
     def eval_state(self,obs):
@@ -103,7 +103,10 @@ class World_agent():
         return actions , log_probs
     
     async def optimize(self, records):
-        tasks = [self.optimize_inter(inter_id, records[inter_id]) for inter_id in self.actors.keys()]
+        all_dict = {}
+        for inter_id in self.actors.keys():
+            all_dict[inter_id] = [recoder[inter_id] for recoder in records ]
+        tasks = [self.optimize_inter(inter_id, all_dict[inter_id]) for inter_id in self.actors.keys()]
         await asyncio.gather(*tasks)
         return True
             
@@ -111,12 +114,11 @@ class World_agent():
         await self.optimize_inone(inter_id, records)
         return True
     
-    async def optimize_inone(self,inter_id,records):
+    async def optimize_inone(self,inter_id,trecords):
         actor = self.actors[inter_id]
         critic = self.critics[inter_id]
         actor_optimizer = self.actors_optimizer[inter_id]
         critic_optimizer = self.critics_optimizer[inter_id]
-        
         def compute_gae(critic, trajectory, gamma=1.0, lam=0.95):
             with torch.no_grad():
                 state_records = np.array(trajectory['b_state'], dtype=object)
@@ -138,22 +140,49 @@ class World_agent():
                 returns.insert(0, gae + values[step].item())
             return np.array(returns)
         
-        returns = compute_gae(critic, records, gamma=1.0, lam=0.95)
-        returns = torch.from_numpy(returns).float()
-        logging.info(f"returns: {returns.flatten()[:10]}")
+        all_returns = []
+        all_advantages = []
+        all_old_log_probs = []
+        merged_b_states = []  # 使用列表存储合并后的b_state
+        merged_actions = []   # 使用列表存储合并后的action
+    
+        for i, records in enumerate(trecords):
+            # 计算GAE并获取returns
+            returns = compute_gae(critic, records, gamma=1.0, lam=0.95)
+            returns = torch.from_numpy(returns).float()
+            logging.info(f"Trajectory {i} returns: {returns.flatten()[:10]}")
+            all_returns.append(returns)
+
+            # 计算优势（advantages）
+            with torch.no_grad():
+                state_records = np.array(records['b_state'], dtype=object)
+                values = critic.forward_batch(state_records)
+                advantages = returns - values.flatten()
+                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+            logging.info(f"Trajectory {i} advantages: {advantages.flatten()[:10]}")
+            all_advantages.append(advantages)
+
+            # 获取旧的对数概率
+            old_log_probs = torch.FloatTensor(records["log_prob"])
+            all_old_log_probs.append(old_log_probs)
+            
+            # 使用extend合并b_state等字段
+            merged_b_states.extend(records['b_state'])  # 直接追加deque内容
+            merged_actions.extend(records['action'])    # 追加action
         
-        with torch.no_grad():
-            state_records = np.array(records['b_state'], dtype=object)
-            values = critic.forward_batch(state_records)
-            advantages = returns - values.flatten()
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        logging.info(f"advantages: {advantages.flatten()[:10]}")
+        records = {}
+        records['b_state'] = merged_b_states
+        records['action'] = merged_actions
+        # 合并所有轨迹的结果
+        returns = torch.cat(all_returns, dim=0)  # 沿着第0维拼接
+        advantages = torch.cat(all_advantages, dim=0)
+        old_log_probs = torch.cat(all_old_log_probs, dim=0)
         
-        old_log_probs = torch.FloatTensor(records["log_prob"])
         
         flag = True
-        num_epochs = 3
-        batch_size = len(records['b_state'])//4
+        num_epochs = 10
+        batch_size = len(records['b_state'])//10
+        logging.info(f"lenght, batch_size: {len(records['b_state'])}, {batch_size}")
         clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
         entropy_coef = 0.01  # 熵系数，建议根据任务调整
