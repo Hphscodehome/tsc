@@ -15,7 +15,7 @@ from datatype.define_datatype import Vehicle,Indicators
 #endregion
 
 class World(gym.Env):
-    def __init__(self, sumocfg, train = False):
+    def __init__(self, sumocfg, train = True):
         self.sumocfg = sumocfg
         tree = ET.parse(self.sumocfg)
         root = tree.getroot()
