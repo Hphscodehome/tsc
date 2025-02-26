@@ -65,16 +65,9 @@ class Intersection():
             indices = torch.arange(len(mask))[~mask]  # 获取mask为False的索引
             lane_sample = torch.argmax(filtered_logits).item()
             lane_sample = indices[lane_sample].item()
-            '''
-            distribution = torch.distributions.Categorical(logits=filtered_logits)
-            lane_sample = distribution.sample().item()
-            lane_sample = indices[lane_sample].item()
-            '''
             _id = get_int(phase_str[lane_sample])
             probability = torch.sigmoid(action[lane_sample,1])
             change_sample = 1 if probability > 0.5 else 0  # 确定性选择
-            #distribution = torch.distributions.Bernoulli(probability)# 创建一个Bernoulli分布
-            #change_sample = distribution.sample().item()
             if change_sample == 1:
                 _id += 1
                 _id = _id % Chars
@@ -99,7 +92,6 @@ class Intersection():
                 result[lane_sample] = lane_char
             mask[lane_sample] = True
         self.set_phase = ''.join(result)
-        #logging.info(f"origin:{phase.phase_str},next:{''.join(result)}")
         logging.info(f"next:{''.join(result)}")
         if ''.join(result) != phase_str:
             self.cahnge_phase = True
@@ -347,9 +339,7 @@ class Intersection():
     #region reward
     def get_reward(self):
         indicator = self.get_all_info()
-        reward = 0
-        # 首先是按照吞吐量
-        # 然后按照等待时间的增量
+        #reward = ( -indicator.waitnums_asc + indicator.throughput)/(indicator.total_vehicles+1)  
         reward = - indicator.total_wait_nums/(indicator.total_vehicles+1)
         return reward, indicator
     #endregion
