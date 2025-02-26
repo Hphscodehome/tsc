@@ -59,6 +59,7 @@ class World_agent():
             torch.save(critic.state_dict(), f'./pths/exp_{str(exp)}_{inter_id}_critic_round{str(round)}_model_weights.pth')
             torch.save(actor.state_dict(), f'./pths/exp_{str(exp)}_{inter_id}_actor_round{str(round)}_model_weights.pth')
             self.actors_prob[inter_id] = self.actors_prob[inter_id]*0.8
+            logging.info(f"train coeff: {self.actors_prob[inter_id]}")
             
     def eval_state(self,obs):
         eval_states = {}
@@ -116,7 +117,7 @@ class World_agent():
         actor_optimizer = self.actors_optimizer[inter_id]
         critic_optimizer = self.critics_optimizer[inter_id]
         
-        def compute_gae(critic, trajectory, gamma=0.99, lam=0.95):
+        def compute_gae(critic, trajectory, gamma=1.0, lam=0.95):
             with torch.no_grad():
                 state_records = np.array(trajectory['b_state'], dtype=object)
                 values = critic.forward_batch(state_records)
@@ -137,16 +138,16 @@ class World_agent():
                 returns.insert(0, gae + values[step].item())
             return np.array(returns)
         
-        returns = compute_gae(critic, records, gamma=0.99, lam=0.95)
+        returns = compute_gae(critic, records, gamma=1.0, lam=0.95)
         returns = torch.from_numpy(returns).float()
-        logging.info(f"returns:{returns.flatten()[:10]}")
+        logging.info(f"returns: {returns.flatten()[:10]}")
         
         with torch.no_grad():
             state_records = np.array(records['b_state'], dtype=object)
             values = critic.forward_batch(state_records)
             advantages = returns - values.flatten()
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        logging.info(f"advantages:{advantages.flatten()[:10]}")
+        logging.info(f"advantages: {advantages.flatten()[:10]}")
         
         old_log_probs = torch.FloatTensor(records["log_prob"])
         
