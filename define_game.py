@@ -112,13 +112,14 @@ async def main():
     )
     sumocfg = '/data/hupenghui/Self/tsc/data/syn1_1x1_1h/data.sumocfg'
     game = Game(sumocfg=sumocfg,train=True)
+    #game.play(end = 1000, epoch = 0)
     for i in range(500):
         game.play(end = 1000, epoch = i)
         logging.info(game.infos)
         await game.train()
         game.evaluate(end = 500, round = i)
         if i % 5 ==0:
-            game.world_agent.save(round=i,exp=2)
+            game.world_agent.save(round=i,exp=3)
     logging.info(f"done with: {game.cfg}")
     
 if __name__ == '__main__':
