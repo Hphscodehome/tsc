@@ -60,6 +60,7 @@ class World(gym.Env):
             for inter in self.inters:
                 inter.set_reset_phase()
         state = self._get_observations()
+        self.state = state
         return state
     
     def step(self, action):
