@@ -72,6 +72,7 @@ class feature_specific_Model_actor(Model):
                 self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out), nn.LayerNorm(self.phase_out))])
         self.join = nn.Sequential(nn.Linear(self.merge_in, self.merge_in),nn.LayerNorm(self.merge_in))
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
+        self.merge_norm = nn.LayerNorm(self.merge_in)
         self.mu_head = nn.Linear(self.merge_in,2)
         self.log_sigma = torch.nn.Parameter(torch.zeros(20,2))
         self.apply(self._init_weights)
@@ -106,6 +107,7 @@ class feature_specific_Model_actor(Model):
                 embedding = embedding.transpose(0, 1)
                 embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
                 embedding = embedding.reshape(batch_size,lanes_size,-1)# batch * lanes * emb
+                embedding = self.networks[key][2](embedding)
             else:
                 # 1*lanes*2
                 batch_size = len(obs[key])
@@ -121,6 +123,7 @@ class feature_specific_Model_actor(Model):
         emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
+        embedding = self.merge_norm(embedding)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
         mu = mu.clamp(min=-10, max=10)  # 限制mu范围
@@ -190,6 +193,7 @@ class feature_specific_Model_actor(Model):
                 embedding = embedding.transpose(0, 1)
                 embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
                 embedding = embedding.reshape(batch_size,lanes_size,-1)# batch * lanes * emb
+                embedding = self.networks[key][2](embedding)
             else:
                 embedding = self.networks[key][0](obs[key])# batch * lanes * emb
             if emb == None:
@@ -202,6 +206,7 @@ class feature_specific_Model_actor(Model):
         emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
+        embedding = self.merge_norm(embedding)
         mu = torch.squeeze(self.mu_head(embedding))
         log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
         logging.info(f"mu,sigma:  {mu[0].flatten()[:10]}")
@@ -275,6 +280,7 @@ class feature_specific_Model_critic(Model):
                 self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
         self.join = nn.Sequential(nn.Linear(self.merge_in, self.merge_in),nn.LayerNorm(self.merge_in))
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
+        self.merge_norm = nn.LayerNorm(self.merge_in)
         self.value_head = nn.Linear(self.merge_in,1)
         self.apply(self._init_weights)
         
@@ -305,6 +311,7 @@ class feature_specific_Model_critic(Model):
                 embedding = embedding.transpose(0, 1)
                 embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
                 embedding = embedding.reshape(batch_size,lanes_size,-1)# batch * lanes * emb
+                embedding = self.networks[key][2](embedding)
             else:
                 embedding = self.networks[key][0](obs[key])# batch * lanes * emb
             if emb == None:
@@ -316,6 +323,7 @@ class feature_specific_Model_critic(Model):
         emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
+        embedding = self.merge_norm(embedding)
         value = self.value_head(embedding)
         value = value.mean(dim=1)# (batch*lanes) * emb_length
         return value
@@ -377,6 +385,7 @@ class feature_specific_Model_critic(Model):
                 embedding = embedding.transpose(0, 1)
                 embedding = embedding.mean(dim=1)# (batch*lanes) * emb_length
                 embedding = embedding.reshape(batch_size,lanes_size,-1)# batch * lanes * emb
+                embedding = self.networks[key][2](embedding)
             else:
                 embedding = self.networks[key][0](obs[key])# batch * lanes * emb
             if emb == None:
@@ -389,6 +398,7 @@ class feature_specific_Model_critic(Model):
         emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
+        embedding = self.merge_norm(embedding)
         value = self.value_head(embedding)
         value = value.mean(dim=1)# (batch*lanes) * emb_length
         return value
