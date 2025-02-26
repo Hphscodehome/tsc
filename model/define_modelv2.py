@@ -70,7 +70,7 @@ class feature_specific_Model_actor(Model):
                 self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head),nn.LayerNorm(self.vehicle_out)])
             else:
                 self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
-                
+        self.join = nn.Linear(self.merge_in, self.merge_in)
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.mu_head = nn.Linear(self.merge_in,2)
         self.log_sigma = torch.nn.Parameter(torch.zeros(20,2))
@@ -118,6 +118,7 @@ class feature_specific_Model_actor(Model):
         # 车道级合并
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
+        emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
@@ -198,6 +199,7 @@ class feature_specific_Model_actor(Model):
         # 车道级合并
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
+        emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         mu = torch.squeeze(self.mu_head(embedding))
@@ -271,6 +273,7 @@ class feature_specific_Model_critic(Model):
                 self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head), nn.LayerNorm(self.vehicle_out)])
             else:
                 self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
+        self.join = nn.Linear(self.merge_in, self.merge_in)
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.value_head = nn.Linear(self.merge_in,1)
         self.apply(self._init_weights)
@@ -310,6 +313,7 @@ class feature_specific_Model_critic(Model):
                 emb = torch.cat([emb, embedding], dim=-1)
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
+        emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         value = self.value_head(embedding)
@@ -382,6 +386,7 @@ class feature_specific_Model_critic(Model):
         # 车道级合并
         mask = obs['mask'] #mask = np.tile(obs['mask'][np.newaxis, :, :], (batch_size*self.total_head, 1, 1))
         mask = mask.clone().detach().to(self.device).type(torch.float)
+        emb = self.join(emb)
         embedding, weight = self.merge(emb.transpose(0, 1),emb.transpose(0, 1),emb.transpose(0, 1),attn_mask = mask.bool())
         embedding = embedding.transpose(0, 1)
         value = self.value_head(embedding)

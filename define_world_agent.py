@@ -48,9 +48,9 @@ class World_agent():
             self.target_critics[inter.id] = Registry.mapping['critic']['feature_specific'](**kwargs)
             self.target_critics[inter.id].load_state_dict(self.critics[inter.id].state_dict())
             
-            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=1e-3)
-            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=1e-3)
-            self.actors_prob[inter.id] = 0.4
+            self.actors_optimizer[inter.id] = optim.Adam(self.actors[inter.id].parameters(), lr=1e-4)
+            self.critics_optimizer[inter.id] = optim.Adam(self.critics[inter.id].parameters(), lr=1e-2)
+            self.actors_prob[inter.id] = 0.6
             
     def save(self,round=0,exp=0):
         for inter_id in list(self.actors.keys()):
@@ -58,7 +58,7 @@ class World_agent():
             actor = self.actors[inter_id]
             torch.save(critic.state_dict(), f'./pths/exp_{str(exp)}_{inter_id}_critic_round{str(round)}_model_weights.pth')
             torch.save(actor.state_dict(), f'./pths/exp_{str(exp)}_{inter_id}_actor_round{str(round)}_model_weights.pth')
-            self.actors_prob[inter_id] = self.actors_prob[inter_id]*0.5
+            self.actors_prob[inter_id] = self.actors_prob[inter_id]*0.8
             
     def eval_state(self,obs):
         eval_states = {}
@@ -151,11 +151,11 @@ class World_agent():
         old_log_probs = torch.FloatTensor(records["log_prob"])
         
         flag = True
-        num_epochs = 20
-        batch_size = 200
-        clip_param = 0.3  # PPO剪切参数
+        num_epochs = 3
+        batch_size = len(records['b_state'])//4
+        clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
-        entropy_coef = 0.01  # 熵系数，建议根据任务调整
+        entropy_coef = 0.04  # 熵系数，建议根据任务调整
         
         if flag:
             for epoch in range(num_epochs):

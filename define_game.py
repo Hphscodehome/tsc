@@ -118,7 +118,7 @@ async def main():
         await game.train()
         game.evaluate(end = 500, round = i)
         if i % 5 ==0:
-            game.world_agent.save(round=i,exp=5)
+            game.world_agent.save(round=i,exp=2)
     logging.info(f"done with: {game.cfg}")
     
 if __name__ == '__main__':

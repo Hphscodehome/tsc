@@ -326,6 +326,7 @@ class Intersection():
         for lane in self.upstream_lanes:
             total_wait_nums += self.eng.lane.getLastStepHaltingNumber(lane)
         waitnums_asc = total_wait_nums - self.last_step_watinums
+        last_step_watinums = self.last_step_watinums
         
         # 
 
@@ -337,7 +338,7 @@ class Intersection():
                           wait_time_ascend = wait_time_ascend,
                           throughput = throughput,
                           average_delay = average_delay,
-                          total_wait_nums = total_wait_nums,
+                          total_wait_nums = last_step_watinums,
                           waitnums_asc = waitnums_asc,
                           vehicles_dec = vehicles_dec)
     #endregion
@@ -346,7 +347,10 @@ class Intersection():
     #region reward
     def get_reward(self):
         indicator = self.get_all_info()
-        reward = - indicator.waitnums_asc/(indicator.total_wait_nums+1)*10 -1 if self.cahnge_phase else - indicator.waitnums_asc/(indicator.total_wait_nums+1)*10
+        reward = 0
+        # 首先是按照吞吐量
+        # 然后按照等待时间的增量
+        reward = - indicator.total_wait_nums/(indicator.total_vehicles+1)
         return reward, indicator
     #endregion
     
