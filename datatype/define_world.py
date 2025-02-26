@@ -56,6 +56,9 @@ class World(gym.Env):
         self.last_step_vehicles = []
         self.last_step_waittime = 0.0
         self.n_agent = len(self.inters)
+        if self.train:
+            for inter in self.inters:
+                inter.set_reset_phase()
         state = self._get_observations()
         return state
     
