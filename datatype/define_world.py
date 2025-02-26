@@ -15,7 +15,7 @@ from datatype.define_datatype import Vehicle,Indicators
 #endregion
 
 class World(gym.Env):
-    def __init__(self, sumocfg):
+    def __init__(self, sumocfg, train = False):
         self.sumocfg = sumocfg
         tree = ET.parse(self.sumocfg)
         root = tree.getroot()
@@ -34,7 +34,13 @@ class World(gym.Env):
         self.last_step_vehicles = []
         self.last_step_waittime = 0.0
         self.action_interval = 5
-        self.reset()
+        self.train = train
+        logging.info(f"train:{self.train}")
+        if self.train:
+            for inter in self.inters:
+                inter.set_reset_phase()
+        self.state = self._get_observations()
+        
     
     def close(self):
         self.eng.close()
@@ -55,8 +61,9 @@ class World(gym.Env):
     
     def step(self, action):
         # action: Dict[str,lanes*12]
-        for item in self.inters:
-            item.step(action[item.id])
+        if self.train:
+            for item in self.inters:
+                item.step(action[item.id])
         for _ in range(self.action_interval):
             self.eng.simulationStep()
             self.renew()
@@ -92,8 +99,8 @@ class World(gym.Env):
             reward, indicator = inter.get_reward()
             rewards[inter.id] = reward
             infos[inter.id] = indicator
-        indicator = self.get_all_info()
-        infos['global'] = indicator
+        #indicator = self.get_all_info()
+        #infos['global'] = indicator
         return rewards, infos
 
     #region global_reward

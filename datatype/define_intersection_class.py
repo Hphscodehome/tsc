@@ -45,6 +45,7 @@ class Intersection():
         self.last_step_watinums = 0
         self.leaved_vehicles = 0
         self.leaved_delay = 0
+        self.cahnge_phase = False
         
     def set_reset_phase(self):
         phase = self.get_current_phase()
@@ -54,26 +55,26 @@ class Intersection():
     #region 设置相位 
     def get_phase(self,action):
         # action lanes*2
-        # lanes*1是link重要性
-        # lanes*2是link变不变
-        # 结合冲突车道确定下一个可以选择的link。
         phase = self.get_current_phase()
         phase_str = phase.phase_str
         result = ['' for _ in range(len(phase_str))]
         mask = torch.tensor([False for _ in range(len(phase_str))])
-        #logging.info(action)
         logits = action[:,0].clone().detach() #torch.tensor(action[:,0])
-        #logging.info(logits)
         while '' in result:
             filtered_logits = logits[~mask]  # 取反mask，保留False对应的logits
             indices = torch.arange(len(mask))[~mask]  # 获取mask为False的索引
+            lane_sample = torch.argmax(filtered_logits).item()
+            lane_sample = indices[lane_sample].item()
+            '''
             distribution = torch.distributions.Categorical(logits=filtered_logits)
             lane_sample = distribution.sample().item()
             lane_sample = indices[lane_sample].item()
+            '''
             _id = get_int(phase_str[lane_sample])
             probability = torch.sigmoid(action[lane_sample,1])
-            distribution = torch.distributions.Bernoulli(probability)# 创建一个Bernoulli分布
-            change_sample = distribution.sample().item()
+            change_sample = 1 if probability > 0.5 else 0  # 确定性选择
+            #distribution = torch.distributions.Bernoulli(probability)# 创建一个Bernoulli分布
+            #change_sample = distribution.sample().item()
             if change_sample == 1:
                 _id += 1
                 _id = _id % Chars
@@ -99,7 +100,11 @@ class Intersection():
             mask[lane_sample] = True
         self.set_phase = ''.join(result)
         #logging.info(f"origin:{phase.phase_str},next:{''.join(result)}")
-        #logging.info(f"next:{''.join(result)}")
+        logging.info(f"next:{''.join(result)}")
+        if ''.join(result) != phase_str:
+            self.cahnge_phase = True
+        else:
+            self.cahnge_phase = False
         self.eng.trafficlight.setRedYellowGreenState(self.id,self.set_phase)
         
     def step(self,action):
@@ -348,7 +353,7 @@ class Intersection():
         #reward = - indicator.waitnums_asc
         #reward = - indicator.total_wait_nums
         #reward = - indicator.wait_time_ascend/10
-        reward = - indicator.vehicles_dec
+        reward = - indicator.waitnums_asc -1 if self.cahnge_phase else - indicator.waitnums_asc
         # - indicator.wait_time_ascend/10
         #-indicator.waitnums_asc
         #if indicator.wait_time_ascend > 0:
