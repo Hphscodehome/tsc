@@ -125,7 +125,7 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         embedding = self.merge_norm(embedding)
         mu = torch.squeeze(self.mu_head(embedding))
-        log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
+        log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.1)
         mu = mu.clamp(min=-10, max=10)  # 限制mu范围
         rows, cols = mu.shape
         sigma = torch.exp(log_sigma)[:rows,:cols]  # 限制sigma范围
@@ -208,7 +208,7 @@ class feature_specific_Model_actor(Model):
         embedding = embedding.transpose(0, 1)
         embedding = self.merge_norm(embedding)
         mu = torch.squeeze(self.mu_head(embedding))
-        log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.5)
+        log_sigma = torch.clamp(self.log_sigma,min=-2,max=0.1)
         logging.info(f"mu,sigma:  {mu[0].flatten()[:10]}")
         mu = mu.clamp(min=-10, max=10)  # 限制mu范围
         batch, rows, cols = mu.shape
