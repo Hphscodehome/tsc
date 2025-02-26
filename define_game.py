@@ -18,7 +18,7 @@ from utils.paths import get_unique_log_dir
 
 
 class Game():
-    def __init__(self, sumocfg, train=False):
+    def __init__(self, sumocfg, train=True):
         self.cfg = sumocfg
         self.world = World(self.cfg,train=train)
         self.world_agent = World_agent(self.world.inters)
@@ -65,7 +65,7 @@ class Game():
             eva_values = self.world_agent.eval_state(self.state)
             obs, rewards, dones, infos = self.world.step(actions)
             for inter in self.world.inters:
-                total_reward[inter.id] += 0.95*rewards[inter.id]
+                total_reward[inter.id] += rewards[inter.id]
                 self.eval_writer.add_scalar(f"reward_{str(round)}/{inter.id}", rewards[inter.id], step)
                 self.eval_writer.add_scalar(f"total_reward_{str(round)}/{inter.id}", total_reward[inter.id], step)
                 self.eval_writer.add_scalar(f"eval_values_{str(round)}/{inter.id}", eva_values[inter.id], step)
