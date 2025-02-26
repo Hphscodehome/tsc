@@ -70,7 +70,7 @@ class feature_specific_Model_actor(Model):
                 self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head), nn.LayerNorm(self.vehicle_out)])
             else:
                 self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out), nn.LayerNorm(self.phase_out))])
-        self.join = nn.Linear(self.merge_in, self.merge_in)
+        self.join = nn.Sequential(nn.Linear(self.merge_in, self.merge_in),nn.LayerNorm(self.merge_in))
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.mu_head = nn.Linear(self.merge_in,2)
         self.log_sigma = torch.nn.Parameter(torch.zeros(20,2))
@@ -273,7 +273,7 @@ class feature_specific_Model_critic(Model):
                 self.networks[key] = nn.ModuleList([qkv, nn.MultiheadAttention(self.vehicle_out, self.vehicle_head), nn.LayerNorm(self.vehicle_out)])
             else:
                 self.networks[key] = nn.ModuleList([nn.Sequential(nn.Embedding(self.phase_size, self.phase_out),nn.LayerNorm(self.phase_out))])
-        self.join = nn.Linear(self.merge_in, self.merge_in)
+        self.join = nn.Sequential(nn.Linear(self.merge_in, self.merge_in),nn.LayerNorm(self.merge_in))
         self.merge = nn.MultiheadAttention(self.merge_in, self.total_head)
         self.value_head = nn.Linear(self.merge_in,1)
         self.apply(self._init_weights)
