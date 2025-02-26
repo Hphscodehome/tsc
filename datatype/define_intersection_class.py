@@ -59,6 +59,10 @@ class Intersection():
         phase_str = phase.phase_str
         result = ['' for _ in range(len(phase_str))]
         mask = torch.tensor([False for _ in range(len(phase_str))])
+        for i in range(len(phase_str)):
+            if phase_str[i] == 'y':
+                result[i] = 'r'
+                mask[i] = True
         logits = action[:,0].clone().detach() #torch.tensor(action[:,0])
         while '' in result:
             filtered_logits = logits[~mask]  # 取反mask，保留False对应的logits
@@ -341,6 +345,8 @@ class Intersection():
         indicator = self.get_all_info()
         #reward = ( -indicator.waitnums_asc + indicator.throughput)/(indicator.total_vehicles+1)  
         reward = - indicator.total_wait_nums/(indicator.total_vehicles+1)
+        # indicator.throughput - 1 if indicator.total_wait_nums > 0 else 0.01
+        #- indicator.total_wait_nums/(indicator.total_vehicles+1)
         return reward, indicator
     #endregion
     
