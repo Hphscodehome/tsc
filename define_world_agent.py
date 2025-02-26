@@ -156,7 +156,7 @@ class World_agent():
         batch_size = len(records['b_state'])//4
         clip_param = 0.2  # PPO剪切参数
         max_grad_norm = 1.0
-        entropy_coef = 0.04  # 熵系数，建议根据任务调整
+        entropy_coef = 0.01  # 熵系数，建议根据任务调整
         
         if flag:
             for epoch in range(num_epochs):
@@ -189,7 +189,7 @@ class World_agent():
                     policy_loss.backward()
                     torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
                     actor_optimizer.step()
-                    logging.info(f"{policy_loss},actor:{actor.mu_head.weight.flatten()[:10]}")
+                    logging.info(f"{policy_loss.item()}, actor: {actor.mu_head.weight.flatten()[:10]}")
                     actor.trained_step += 1
                     actor.writer.add_scalar("actor_Loss/train", policy_loss.item(), actor.trained_step)
                     
@@ -201,11 +201,11 @@ class World_agent():
                     value_loss = nn.MSELoss()(evv, batch_returns)
                     critic_optimizer.zero_grad()
                     value_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(actor.parameters(), max_grad_norm)
+                    torch.nn.utils.clip_grad_norm_(critic.parameters(), max_grad_norm)
                     critic_optimizer.step()
                     critic.trained_step += 1
                     critic.writer.add_scalar("critic_Loss/train", value_loss.item(), critic.trained_step)
-                    logging.info(f"{value_loss},critic:{critic.value_head.weight.flatten()[:10]}")
+                    logging.info(f"{value_loss.item()}, critic: {critic.value_head.weight.flatten()[:10]}")
         return True
     
     
